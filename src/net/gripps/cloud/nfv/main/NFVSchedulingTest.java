@@ -8,6 +8,8 @@ import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.clustering.SF_CUVAlgorithm;
 import net.gripps.cloud.nfv.clustering.RandomVNFClusteringAlgorithm;
 import net.gripps.cloud.nfv.listscheduling.FWS_VNFAlgorithm;
+import net.gripps.cloud.nfv.listscheduling.HEFT_VNFAlgorithm;
+import net.gripps.cloud.nfv.listscheduling.PEFT_VNFAlgorithm;
 import net.gripps.cloud.nfv.optimization.CoordVNFAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.SFCGenerator;
@@ -28,8 +30,9 @@ public class NFVSchedulingTest {
 
         //SFCの生成
         //VNF集合の生成
-      // SFC sfc = SFCGenerator.getIns().singleSFCProcess();
+    //   SFC sfc = SFCGenerator.getIns().singleSFCProcess();
         SFC sfc = SFCGenerator.getIns().multipleSFCProcess();
+       // SFC sfc = SFCGenerator.getIns().singleSFCProcess();
        SFC sfc2 = (SFC)sfc.deepCopy();
        SFC sfc3 = (SFC)sfc.deepCopy();
         SFC sfc4 = (SFC)sfc.deepCopy();
@@ -108,15 +111,16 @@ public class NFVSchedulingTest {
         alg2.mainProcess();
         System.out.println("makespan[RandomListSched]:"+alg2.getMakeSpan()+" / # of vCPUs: "+alg2.getAssignedVCPUMap().size() + "/ # of Hosts:"+alg2.getHostSet().size());
 */
-/*
-        HEFT_VNFAlgorithm alg3 = new HEFT_VNFAlgorithm(env3, sfc3);
-        alg3.mainProcess();
-        System.out.println("makespan[HEFT-VNF]:"+alg3.getMakeSpan()+" / # of vCPUs: "+alg3.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg3.getHostSet().size());
-/*
-        SF_CUVAlgorithm alg4 = new SF_CUVAlgorithm(env4, sfc4);
-        alg4.mainProcess();
-        System.out.println("makespan[CMWSL-VNF-ALL]:"+alg4.getMakeSpan()+" / # of vCPUs: "+alg4.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg4.getHostSet().size());
-*/
+
+        HEFT_VNFAlgorithm heft = new HEFT_VNFAlgorithm(env, sfc);
+        heft.mainProcess();
+        System.out.println("SLR[HEFT]:"+NFVUtil.getRoundedValue(heft.getMakeSpan()/heft.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+heft.getAssignedVCPUMap().size()+ "/ # of Hosts:"+heft.getHostSet().size()
+                +"/# of Ins:"+heft.calcTotalFunctionInstanceNum());
+
+        PEFT_VNFAlgorithm peft = new PEFT_VNFAlgorithm(env4, sfc4);
+        peft.mainProcess();
+        System.out.println("SLR[PEFT]:"+NFVUtil.getRoundedValue(peft.getMakeSpan()/peft.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+peft.getAssignedVCPUMap().size()+ "/ # of Hosts:"+peft.getHostSet().size()
+                +"/# of Ins:"+peft.calcTotalFunctionInstanceNum());
 
 
         SF_CUVAlgorithm alg5 = new SF_CUVAlgorithm(env5, sfc5);
@@ -124,6 +128,14 @@ public class NFVSchedulingTest {
         alg5.mainProcess();
         System.out.println("SLR[SF_CUV]:"+NFVUtil.getRoundedValue(alg5.getMakeSpan()/alg5.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+alg5.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg5.getHostSet().size()
         +"/# of Ins:"+alg5.calcTotalFunctionInstanceNum());
+/*
+        HierarchicalVNFClusteringAlgorithm h = new HierarchicalVNFClusteringAlgorithm(env4, sfc4);
+         h.configLevel();
+        h.mainProcess();
+        System.out.println("SLR[HClustering]:"+NFVUtil.getRoundedValue(h.getMakeSpan()/h.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+h.getAssignedVCPUMap().size()+ "/ # of Hosts:"+h.getHostSet().size()
+                +"/# of Ins:"+h.calcTotalFunctionInstanceNum());
+
+ */
 /*
         SF_CUVAlgorithm alg4 = new SF_CUVAlgorithm(env4, sfc4);
         alg4.setBtmMode(1);
@@ -157,11 +169,12 @@ public class NFVSchedulingTest {
 
 
 
-        CoordVNFAlgorithm alg3 = new CoordVNFAlgorithm(env3, sfc3);
+        CoordVNFAlgorithm algc = new CoordVNFAlgorithm(env3, sfc3);
         //alg6.setMaxHostNum(alg5.getHostSet().size());
-        alg3.mainProcess();
-        System.out.println("SLR[CoordVNF]:"+NFVUtil.getRoundedValue(alg3.getMakeSpan()/alg3.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+alg3.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg3.getHostSet().size()
-        +"/# of Ins:"+alg3.calcTotalFunctionInstanceNum());
+        algc.mainProcess();
+
+        System.out.println("SLR[CoordVNF]:"+NFVUtil.getRoundedValue(algc.getMakeSpan()/algc.getTotalCPProcTimeAtMaxSpeed()) +" / # of vCPUs: "+algc.getAssignedVCPUMap().size()+ "/ # of Hosts:"+algc.getHostSet().size()
+        +"/# of Ins:"+algc.calcTotalFunctionInstanceNum());
 
 
 
