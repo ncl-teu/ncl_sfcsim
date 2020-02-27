@@ -8,3 +8,10 @@ SFC (Service Function Chaining) Simulator
 ## 仕組み
 - Mainメソッドは，`/src/net/gripps/cloud/nfv/main/`内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
 - 実行の際に，設定ファイルを読み込みます．
+### シミュレータ上の処理環境（クラウド）について
+- **Cloud(net.gripps.cloud.core.Cloud)**: 一番大きな単位であり，1ネットワークそのものと考えて下さい．
+- **ComputeHost(net.gripps.cloud.core.ComputeHost)**: クラウド内にある物理計算機．
+- **CloudCPU(net.gripps.cloud.core.CloudCPU)**: ComputeHost内に1つ以上あるCPUソケット．
+- **CPUコア(net.gripps.cloud.core.Core)**:1つのCloudCPU内にある，1つ以上のCPUコア．
+- **vCPU(net.gripps.cloud.core.VCPU)**: 1つのCPUコア内にある，1つor2つある仮想CPU．**SFは，このvCPUに対して割り当てることを想定している．**
+- 通信帯域幅は，ComputeHostのNIC，及びCloudで設定します．つまりComputeHostはLAN内での帯域幅であり，Cloudは外部ネットワークへの帯域幅です．
