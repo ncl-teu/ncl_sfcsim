@@ -6,5 +6,5 @@ SFC (Service Function Chaining) Simulator
 - IDEを使う場合は，classpathとしてlib内にある全jarファイルを追加してください．おすすめIDEは，IntelliJ IDEAです．
 - 実行は，shファイル（Linuxの場合）やbatファイル（Windowsの場合）を使って下さい．
 ## 仕組み
-- Mainメソッドは，**src/net/gripps/cloud/nfv/main/ ** 内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
+- Mainメソッドは，`/src/net/gripps/cloud/nfv/main/`内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
 - 実行の際に，設定ファイルを読み込みます．
