@@ -183,7 +183,7 @@ SFC (Service Function Chaining) Simulator
 - 以上の構成は，`nfv.properties`で設定します．
 ### SFCスケジューリングアルゴリズムについて
 - **net.gripps.cloud.nfv**のパッケージ配下にある，`clustering`，`fairscheduling`，`listscheduling`, `optimization`パッケージに入っています．
-- **Clustering**: SF (Service Function)をクラスタリングしてvCPUへ割り当てた後，スケジューリングを行うアルゴリズム**SF-CUV (SF-Clustering for Utilizing vCPUs**，及び階層型クラスタリングアルゴリズムである**HClustering(HierarchicalVNFClusteringAlgorithm by Lee Tesu**)が実装されています．
+- **Clustering**: SF (Service Function)をクラスタリングしてvCPUへ割り当てた後，スケジューリングを行うアルゴリズム**SF-CUV (SF-Clustering for Utilizing vCPUs）**，及び階層型クラスタリングアルゴリズムである**HClustering(HierarchicalVNFClusteringAlgorithm by Lee Tesu**)が実装されています．
 - **listscheduling**: HEFT, PEFT, FWS，Randomアルゴリズムが実装されています．
 - **optimization**: CoordVNFAlgorithmが実装されています．
 ### SFCの構造について
