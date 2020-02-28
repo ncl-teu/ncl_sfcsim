@@ -186,6 +186,18 @@ SFC (Service Function Chaining) Simulator
 - **Clustering**: SF (Service Function)をクラスタリングしてvCPUへ割り当てた後，スケジューリングを行うアルゴリズム**SF-CUV (SF-Clustering for Utilizing vCPUs**，及び階層型クラスタリングアルゴリズムである**HClustering(HierarchicalVNFClusteringAlgorithm**)が実装されています．
 - **listscheduling**: HEFT, PEFT, FWS，Randomアルゴリズムが実装されています．
 - **optimization**: CoordVNFAlgorithmが実装されています．
+### SFCの構造について
+- SFC: `net.gripps.cloud.nfv.sfc.SFC`です．この中で，
+~~~
+    /**
+     * VNFのMap
+     */
+    private HashMap<Long, VNF> vnfMap;
+~~~
+があり，(VNFのID, VNF)のマップが格納されています．
+- VNF: 実態はタスクであり，SF(サービスファンクション）です．`net.gripps.cloud.nfv.sfc.VNF`に定義されていますので見て下さい．
+- VNFのIDは，`private Vector<Long> IDVector`となっており，**Index 0: SFCのID, Index1: VNFのID**です．つまり，VNFのIDを知りたければインデックス1の値を見ることになります．
+- VNFには，` protected String vCPUID`そして，VNFの割当先vCPUのIDが定義されていますので，適宜，セットしてください．
 #### 新規にSFCスケジューリングアルゴリズムを作成する方法（listスケジューリングの場合）
 1. BaseVNFSchedulingAlgorithmを継承する．
 ~~~
@@ -200,15 +212,13 @@ public class 新規アルゴリズムのクラス名 extends BaseVNFSchedulingAl
 
 ~~~
 この時点で，スケジューリングするための初期設定がなされます．
+
 3. 優先度に従ってSFを選択する(vnfとする）．そして，vnfをスケジュールする．例えば以下のようにしてください．
 ~~~
     public void mainProcess() {
         //未スケジュールなVNFが残っている間，行うループ
         while (!this.getUnScheduledVNFSet().isEmpty()) {
             VNF vnf = this.selectVNF();
-            if(vnf == null){
-                System.out.println("test");
-            }
             //vcpu全体から，vnfの割当先を選択する．
             this.scheduleVNF(vnf, this.vcpuMap);
         }
