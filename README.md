@@ -9,7 +9,8 @@ SFC (Service Function Chaining) Simulator
 - Mainメソッドは，`/src/net/gripps/cloud/nfv/main/`内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
 - 実行の際に，設定ファイルである`nfv.properties`を読み込みます．
 ### シミュレータ上の処理環境（クラウド）について
-- **Cloud(net.gripps.cloud.core.Cloud)**: 一番大きな単位であり，1データセンターと考えて下さい．複数指定可能．
+- 計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
+`net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
 ~~~
     /**
      * データセンター（クラウド）のマップで，(クラウドのID, クラウド）
@@ -45,6 +46,30 @@ SFC (Service Function Chaining) Simulator
      * データセンター間の帯域幅
      */
     protected long[][] dcLinkMatrix;
+~~~
+- **Cloud(net.gripps.cloud.core.Cloud)**: 一番大きな単位であり，1データセンターと考えて下さい．複数指定可能．
+~~~
+    /**
+     * このクラウドのID
+     */
+    protected  Long id;
+
+    /**
+     * ComputeHostのマップ
+     */
+    protected HashMap<Long, ComputeHost> computeHostMap;
+
+    /**
+     * このクラウド（データセンター）の帯域幅．実際にはルータの外側の帯域幅になる．
+     */
+    protected long bw;
+
+    /**
+     * ファイルシステムとなるホスト
+     * MapReduceで使う
+     *
+     */
+    protected FSHost fsHost;
 ~~~
 - **ComputeHost(net.gripps.cloud.core.ComputeHost)**: Cloud内にある物理計算機．Cloud内で複数指定可能．
 ~~~
@@ -155,6 +180,4 @@ SFC (Service Function Chaining) Simulator
     private long usedMips;
 ~~~
 - 通信帯域幅は，ComputeHostのNIC，及びCloudで設定します．つまりComputeHostはLAN内での帯域幅であり，Cloudは外部ネットワークへの帯域幅です．
-- これら計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
-`net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
 - 以上の構成は，`nfv.properties`で設定します．
