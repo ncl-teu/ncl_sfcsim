@@ -70,7 +70,7 @@ SFC (Service Function Chaining) Simulator
      * このホストのIPアドレス
      */
     private String ipAddr;
-    ~~~
+~~~
 - **CloudCPU(net.gripps.cloud.core.CloudCPU)**: ComputeHost内にあるCPUソケット．複数指定可能．
 ~~~
     /**
@@ -87,7 +87,7 @@ SFC (Service Function Chaining) Simulator
      * このCloudCPUのID
      */
     private String prefix;
-    ~~~
+~~~
 - **CPUコア(net.gripps.cloud.core.Core)**:1つのCloudCPU内にある，CPUコア．複数指定可能．
 ~~~
     /**
@@ -125,7 +125,7 @@ SFC (Service Function Chaining) Simulator
      * コアのprefix（文字列）
      */
     private String prefix;
-    ~~~
+~~~
 - **vCPU(net.gripps.cloud.core.VCPU)**: 1つのCPUコア内にある，1つor2つある仮想CPU．**SFは，このvCPUに対して割り当てることを想定している．**
 ~~~
     /**
@@ -153,7 +153,7 @@ SFC (Service Function Chaining) Simulator
      * 占有されているMIPS
      */
     private long usedMips;
-    ~~~
+~~~
 - 通信帯域幅は，ComputeHostのNIC，及びCloudで設定します．つまりComputeHostはLAN内での帯域幅であり，Cloudは外部ネットワークへの帯域幅です．
 - これら計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
 `net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
