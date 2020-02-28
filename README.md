@@ -181,3 +181,13 @@ SFC (Service Function Chaining) Simulator
 ~~~
 - 通信帯域幅は，ComputeHostのNIC，及びCloudで設定します．つまりComputeHostはLAN内での帯域幅であり，Cloudは外部ネットワークへの帯域幅です．
 - 以上の構成は，`nfv.properties`で設定します．
+### SFCスケジューリングアルゴリズムについて
+- **net.gripps.cloud.nfv**のパッケージ配下にある，`clustering`，`fairscheduling`，`listscheduling`, `optimization`パッケージに入っています．
+- **Clustering**: SF (Service Function)をクラスタリングしてvCPUへ割り当てた後，スケジューリングを行うアルゴリズム**SF-CUV (SF-Clustering for Utilizing vCPUs**，及び階層型クラスタリングアルゴリズムである**HClustering(HierarchicalVNFClusteringAlgorithm**)が実装されています．
+- **listscheduling**: HEFT, PEFT, FWS，Randomアルゴリズムが実装されています．
+- **optimization**: CoordVNFAlgorithmが実装されています．
+#### 新規にSFCスケジューリングアルゴリズムを作成する方法（listスケジューリングの場合）
+1. BaseVNFSchedulingAlgorithmを継承する．
+~~~
+public class **[新規アルゴリズムのクラス名]** extends BaseVNFSchedulingAlgorithm {
+~~~
