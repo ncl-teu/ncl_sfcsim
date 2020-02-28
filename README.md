@@ -189,5 +189,47 @@ SFC (Service Function Chaining) Simulator
 #### 新規にSFCスケジューリングアルゴリズムを作成する方法（listスケジューリングの場合）
 1. BaseVNFSchedulingAlgorithmを継承する．
 ~~~
-public class **[新規アルゴリズムのクラス名]** extends BaseVNFSchedulingAlgorithm {
+public class 新規アルゴリズムのクラス名 extends BaseVNFSchedulingAlgorithm 
+....
+~~~
+2. コンストラクタでsuper(env, sfc)を呼び出す．
+~~~
+    public 新規アルゴリズムのクラス名(CloudEnvironment env, SFC sfc) {
+        super(env, sfc);
+    }
+
+~~~
+この時点で，スケジューリングするための初期設定がなされます．
+3. 優先度に従ってSFを選択する(vnfとする）．そして，vnfをスケジュールする．例えば以下のようにしてください．
+~~~
+    public void mainProcess() {
+        //未スケジュールなVNFが残っている間，行うループ
+        while (!this.getUnScheduledVNFSet().isEmpty()) {
+            VNF vnf = this.selectVNF();
+            if(vnf == null){
+                System.out.println("test");
+            }
+            //vcpu全体から，vnfの割当先を選択する．
+            this.scheduleVNF(vnf, this.vcpuMap);
+        }
+        double val = -1;
+        Iterator<Long> endITe = this.getSfc().getEndVNFSet().iterator();
+        while (endITe.hasNext()) {
+            Long eID = endITe.next();
+            VNF endVNF = this.sfc.findVNFByLastID(eID);
+            if (endVNF.getFinishTime() >= val) {
+                val = endVNF.getFinishTime();
+            }
+        }
+        //応答時間を決める．
+        this.makeSpan = val;
+    }
+~~~
+このうち，`selectVNF()`は自身で実装してください．また，this.scheduleVNF(vnf, this.vcpuMap)は，superクラスで実装済みなので呼び出せばOKです．
+this.scheduleVNF(vnf, this.vcpuMap)の引数は(スケジュール対象のVNF, VNFの割り当て候補のvCPU集合）という意味です．
+3. 外部のmainメソッドから，下記のように呼び出してください．詳しくは**NFVtest.javaかNFVSchedulingTest.java**を参照．
+~~~
+        新規アルゴリズムクラス alg = new 新規アルゴリズムクラス(env, sfc);
+        alg.mainProcess();
+        System.out.println("makespan[新規のアルゴリズム名]:"+alg.getMakeSpan()+" / # of vCPUs: "+alg.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg.getHostSet().size());
 ~~~
