@@ -227,7 +227,8 @@ public class 新規アルゴリズムのクラス名 extends BaseVNFSchedulingAl
 ~~~
 このうち，`selectVNF()`は自身で実装してください．また，this.scheduleVNF(vnf, this.vcpuMap)は，superクラスで実装済みなので呼び出せばOKです．
 this.scheduleVNF(vnf, this.vcpuMap)の引数は(スケジュール対象のVNF, VNFの割り当て候補のvCPU集合）という意味です．
-3. 外部のmainメソッドから，下記のように呼び出してください．詳しくは**NFVtest.javaかNFVSchedulingTest.java**を参照．
+
+4. 外部のmainメソッドから，下記のように呼び出してください．詳しくは**NFVtest.javaかNFVSchedulingTest.java**を参照．
 ~~~
         新規アルゴリズムクラス alg = new 新規アルゴリズムクラス(env, sfc);
         alg.mainProcess();
