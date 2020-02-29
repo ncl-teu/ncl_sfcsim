@@ -244,3 +244,36 @@ this.scheduleVNF(vnf, this.vcpuMap)の引数は(スケジュール対象のVNF, 
         alg.mainProcess();
         System.out.println("makespan[新規のアルゴリズム名]:"+alg.getMakeSpan()+" / # of vCPUs: "+alg.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg.getHostSet().size());
 ~~~
+#### 新規にSFCスケジューリングアルゴリズムを作成する方法（クラスタリングアルゴリズムの場合）
+1. `net.gripps.cloud.nfv.clustering.AbstractVNFClusteringAlgorithm`クラスを継承した新規クラスを作る．
+そして，コンストラクタでsuper(env, sfc)を呼ぶ．これで，スケジューリング及びクラスタリングのための初期設定がなされます．
+また，最も大事なのはクラスタ同士をマージするメソッドである`public VNFCluster clustering(VNFCluster fromCluster, VNFCluster toCluster)`です．これは，2つのクラスタをマージして一つのクラスタとする処理です．新規クラス側ではこれをcallすればよいです．
+~~~
+public class 新規クラス名 extends AbstractVNFClusteringAlgorithm {
+
+    public 新規クラス名(CloudEnvironment env, SFC sfc){
+        super(env, sfc);
+    }
+    .....
+}
+~~~
+2. AbstractVNFClusteringAlgorithmでabstract宣言されているメソッドを実装する．
+これらは，クラスタ選択，及びクラスタリングに関する処理を実装してください．
+~~~
+    /**
+     * 何らかの基準でVNFClusterを選択します．
+     * 実装クラス側で実装してください．
+     * @return
+     */
+    public abstract VNFCluster selectVNFCluster();
+
+
+    /**
+     * 指定クラスタに対して何らかの処理を行います．
+     * 例えば，clusterを他クラスタとマージするなど，です．
+     * @param cluster
+     */
+    public abstract VNFCluster processVNFCluster(VNFCluster cluster);
+~~~
+3. その後は，scheduleVNFメソッドによって各SFに対するスケジュールをしてもよいですし，
+他の方法で各リソースの時間スロットへSFを割り当ててもよいです．
