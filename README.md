@@ -7,7 +7,7 @@ SFC (Service Function Chaining) Simulator
 - 実行は，shファイル（Linuxの場合）やbatファイル（Windowsの場合）を使って下さい．
 ## 仕組み
 - Mainメソッドは，`/src/net/gripps/cloud/nfv/main/`内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
-- 実行の際に，設定ファイルである`nfv.properties`を読み込みます．
+- 実行の際に，設定ファイルである`nfv.properties`を読み込みます．**nfv.properties**を想定環境に応じてパラメータ設定してください．
 ### シミュレータ上の処理環境（クラウド）について
 - 計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
 `net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
@@ -71,7 +71,7 @@ SFC (Service Function Chaining) Simulator
      */
     protected FSHost fsHost;
 ~~~
-- **ComputeHost(net.gripps.cloud.core.ComputeHost)**: Cloud内にある物理計算機．Cloud内で複数指定可能．
+- **ComputeHost(net.gripps.cloud.core.ComputeHost)**: Cloud内にある物理計算機．Cloud内で複数指定可能．↓のフィールド変数にはないが，Machineクラスを継承しており，CPUソケットのマップ`private TreeMap<Long, CPU> cpuMap;`も保持している．
 ~~~
     /**
      * VMのMapです．同一VMで複製した場合も，別個のVMとして扱います．
