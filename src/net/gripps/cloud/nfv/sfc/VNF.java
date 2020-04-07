@@ -157,6 +157,19 @@ public class VNF  implements Serializable{
      */
     protected double priority;
 
+    protected long hLevel;
+
+    /**
+     * For PEFT
+     */
+    protected double aveOCT;
+
+
+
+
+
+
+
 
 
     public VNF(int in_type, long weight, long requiredMips, long requiredRecvBW, long  requiredSendBW, String  vCPUID, int percent) {
@@ -172,6 +185,9 @@ public class VNF  implements Serializable{
         }else{
             this.type = NFVUtil.genInt2(1, NFVUtil.vnf_type_max, 1, 0.5);
         }
+
+
+
         this.workLoad = weight;
         this.requiredRecvBW = requiredRecvBW;
         this.requiredSendBW = requiredSendBW;
@@ -196,6 +212,8 @@ public class VNF  implements Serializable{
         this.clusterID = -1L;
         this.isAssignedInCloud = false;
         this.priority = -1d;
+        this.hLevel = -1;
+        this.aveOCT = -1d;
 
     }
 
@@ -549,5 +567,21 @@ public class VNF  implements Serializable{
 
     public void setPriority(double priority) {
         this.priority = priority;
+    }
+
+    public long gethLevel() {
+        return hLevel;
+    }
+
+    public void sethLevel(long hLevel) {
+        this.hLevel = hLevel;
+    }
+
+    public double getAveOCT() {
+        return aveOCT;
+    }
+
+    public void setAveOCT(double aveOCT) {
+        this.aveOCT = aveOCT;
     }
 }
