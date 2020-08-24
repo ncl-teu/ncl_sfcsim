@@ -11,7 +11,7 @@ SFC (Service Function Chaining) Simulator
 ![1](https://user-images.githubusercontent.com/4952618/78368539-be1dfa00-75fe-11ea-9900-f474a58acdf0.jpg)
 ### Assumed environment
 - The class that covers the whole network is `net.gripps.cloud.core.CloudEnvironment`. In this class, the following fields are defined. 
-`net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
+The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, that extends CloudEnvironment.
 ~~~
     /**
      * Map object as a data center (cloud): <cloudID, cloud>
@@ -66,7 +66,7 @@ SFC (Service Function Chaining) Simulator
     protected long bw;
 
 ~~~
-- **ComputeHost(net.gripps.cloud.core.ComputeHost)**: Cloud内にある物理計算機．Cloud内で複数指定可能．↓のフィールド変数にはないが，Machineクラスを継承しており，CPUソケットのマップ`private TreeMap<Long, CPU> cpuMap;`も保持している．
+- **ComputeHost(net.gripps.cloud.core.ComputeHost)**: A physical computer in a cloud. This class extends Machine class, having a CPU map `private TreeMap<Long, CPU> cpuMap;`. 
 ~~~
     /**
      * VMのMapです．同一VMで複製した場合も，別個のVMとして扱います．
@@ -108,16 +108,15 @@ SFC (Service Function Chaining) Simulator
      */
     private String prefix;
 ~~~
-- **CPUコア(net.gripps.cloud.core.Core)**:1つのCloudCPU内にある，CPUコア．複数指定可能．
+- **CPUコア(net.gripps.cloud.core.Core)**:A CPU core in a CloudCPU. 
 ~~~
     /**
-     * スレッド数．もしHyper Threadingがonであれば2．
-     * そうでなければ1となる．
+     * # of threads. If Hyper-Threading is enable, this value is set as 2. otherwise, it is 1. 
      */
     private int threadNum;
 
     /**
-     * 想定される使用率の上限
+     * The threshold of usage (%)
      */
     private int maxUsage;
 
@@ -127,50 +126,50 @@ SFC (Service Function Chaining) Simulator
     private long mips;
 
     /**
-     * コアのID
+     * CPU core ID
      */
     private Long coreID;
 
     /**
-     * 帯域幅（使いみちなし？）
+     * BW
      */
     private long bw;
 
     /**
-     * VCPUのMap
+     * VCPU Map
      */
     private HashMap<Long, VCPU> vCPUMap;
 
     /**
-     * コアのprefix（文字列）
+     * prefix of the core. 
      */
     private String prefix;
 ~~~
-- **vCPU(net.gripps.cloud.core.VCPU)**: 1つのCPUコア内にある，1つor2つある仮想CPU．**SFは，このvCPUに対して割り当てることを想定している．**
+- **vCPU(net.gripps.cloud.core.VCPU)**: A vCPU in a CPU core. **We assume that each SF is allocated to a vCPU. **
 ~~~
     /**
-     * vCPUのIDです．dc_id^host_id^cpu_id^core_id^number
-     * から構成されます．
+     * vCPU ID, that is composed of dc_id^host_id^cpu_id^core_id^number. 
+     * 
      */
     private String prefix;
 
     /**
-     * コアのPrefix
+     * CPU Core Prefix
      */
     private String corePrefix;
 
     /**
-     * このvCPUが所属するVMのID
+     * VM ID to which this vCPU belongs.
      */
     private String VMID;
 
     /**
-     * MIPSの定義
+     * MIPS
      */
     private long mips;
 
     /**
-     * 占有されているMIPS
+     * occupied mips. 
      */
     private long usedMips;
 ~~~
