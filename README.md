@@ -230,7 +230,7 @@ The initialization procedure is performed at this stage.
 Please implement `selectVNF()` by your own．The method for the SF allcation, i.e., this.scheduleVNF(vnf, this.vcpuMap) is already implemented in the super class. Thus, you have only call the method for the SF allcation. 
 The arguments of this.scheduleVNF(vnf, this.vcpuMap) are: (The SF to be scheduled, set of vCPUs for the SF allocation). 
 
-4. From an external method (e.g., main method)，Please call as follows: For more details, refer to **NFVtest.javaかNFVSchedulingTest.java**. 
+4. From an external method (e.g., main method)，Please call as follows: For more details, refer to **NFVtest.java or NFVSchedulingTest.java**. 
 ~~~
         NEW_CLASS alg = new NEW_CLASS(env, sfc);
         alg.mainProcess();
