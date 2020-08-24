@@ -227,45 +227,44 @@ The initialization procedure is performed at this stage.
         this.makeSpan = val;
     }
 ~~~
-このうち，`selectVNF()`は自身で実装してください．また，this.scheduleVNF(vnf, this.vcpuMap)は，superクラスで実装済みなので呼び出せばOKです．
-this.scheduleVNF(vnf, this.vcpuMap)の引数は(スケジュール対象のVNF, VNFの割り当て候補のvCPU集合）という意味です．
+Please implement `selectVNF()` by your own．The method for the SF allcation, i.e., this.scheduleVNF(vnf, this.vcpuMap) is already implemented in the super class. Thus, you have only call the method for the SF allcation. 
+The arguments of this.scheduleVNF(vnf, this.vcpuMap) are: (The SF to be scheduled, set of vCPUs for the SF allocation). 
 
-4. 外部のmainメソッドから，下記のように呼び出してください．詳しくは**NFVtest.javaかNFVSchedulingTest.java**を参照．
+4. From an external method (e.g., main method)，Please call as follows: For more details, refer to **NFVtest.javaかNFVSchedulingTest.java**. 
 ~~~
-        新規アルゴリズムクラス alg = new 新規アルゴリズムクラス(env, sfc);
+        NEW_CLASS alg = new NEW_CLASS(env, sfc);
         alg.mainProcess();
-        System.out.println("makespan[新規のアルゴリズム名]:"+alg.getMakeSpan()+" / # of vCPUs: "+alg.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg.getHostSet().size());
+        System.out.println("makespan[NEW_CLASS]:"+alg.getMakeSpan()+" / # of vCPUs: "+alg.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg.getHostSet().size());
 ~~~
-#### 新規にSFCスケジューリングアルゴリズムを作成する方法（クラスタリングアルゴリズムの場合）
-1. `net.gripps.cloud.nfv.clustering.AbstractVNFClusteringAlgorithm`クラスを継承した新規クラスを作る．
-そして，コンストラクタでsuper(env, sfc)を呼ぶ．これで，スケジューリング及びクラスタリングのための初期設定がなされます．
-また，最も大事なのはクラスタ同士をマージするメソッドである`public VNFCluster clustering(VNFCluster fromCluster, VNFCluster toCluster)`です．これは，2つのクラスタをマージして一つのクラスタとする処理です．新規クラス側ではこれをcallすればよいです．
+#### How to create a new SFC scheduling algorithm (SF clustering algorithm)
+1. Please create a new clsss that extends `net.gripps.cloud.nfv.clustering.AbstractVNFClusteringAlgorithm`.
+Then call super(env, sfc) in the constructor. Then the initialization process for the SF scheduling is finished. 
+The critical part of a SF clustering algorithm is `public VNFCluster clustering(VNFCluster fromCluster, VNFCluster toCluster)`. 
+This method implements the SF cluster merging. You have only to call this method from an external class. 
 ~~~
-public class 新規クラス名 extends AbstractVNFClusteringAlgorithm {
+public class NEW_CLASS extends AbstractVNFClusteringAlgorithm {
 
-    public 新規クラス名(CloudEnvironment env, SFC sfc){
+    public NEW_CLASS(CloudEnvironment env, SFC sfc){
         super(env, sfc);
     }
     .....
 }
 ~~~
-2. AbstractVNFClusteringAlgorithmでabstract宣言されているメソッドを実装する．
-これらは，クラスタ選択，及びクラスタリングに関する処理を実装してください．
+2. Please implement abstract methods defined in AbstractVNFClusteringAlgorithm. 
+These abstract methods requires to impelment how to select a SF cluster, and how to clustering them. 
 ~~~
     /**
-     * 何らかの基準でVNFClusterを選択します．
-     * 実装クラス側で実装してください．
+     * SF cluster selection. 
      * @return
      */
     public abstract VNFCluster selectVNFCluster();
 
 
     /**
-     * 指定クラスタに対して何らかの処理を行います．
-     * 例えば，clusterを他クラスタとマージするなど，です．
+     * Any procedures can be implemented. For instnce, two SF clusters are merged in this method. 
      * @param cluster
      */
     public abstract VNFCluster processVNFCluster(VNFCluster cluster);
 ~~~
-3. その後は，scheduleVNFメソッドによって各SFに対するスケジュールをしてもよいですし，
-他の方法で各リソースの時間スロットへSFを割り当ててもよいです．
+3. Then you can call scheduleVNF method to schdule each SF, or you can implement an SF scheduling by other policies. 
+．
