@@ -48,7 +48,7 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
      */
     protected long[][] dcLinkMatrix;
 ~~~
-- **Cloud(net.gripps.cloud.core.Cloud)**: one data center. 
+- **Cloud(net.gripps.cloud.core.Cloud)**: A data center. 
 ~~~
     /**
      * Cloud ID
@@ -69,42 +69,40 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
 - **ComputeHost(net.gripps.cloud.core.ComputeHost)**: A physical computer in a cloud. This class extends Machine class, having a CPU map `private TreeMap<Long, CPU> cpuMap;`. 
 ~~~
     /**
-     * VMのMapです．同一VMで複製した場合も，別個のVMとして扱います．
-     * ただし，VM内に，「オリジナルVMID」を保持させているので，どのVMからの複製かは
-     * わかります．
+     * VM Map. 
      */
     private HashMap<String, VM> vmMap;
 
 
     /**
-     * 当該ホストが属するデータセンターID
+     * Data center ID to which this host belongs.
      */
     private Long dcID;
 
     /**
-     * このホストのprefix（文字列）
+     * Prefix of this host.
      */
     private String prefix;
 
     /**
-     * このホストのIPアドレス
+     * IP address
      */
     private String ipAddr;
 ~~~
-- **CloudCPU(net.gripps.cloud.core.CloudCPU)**: ComputeHost内にあるCPUソケット．複数指定可能．
+- **CloudCPU(net.gripps.cloud.core.CloudCPU)**: A CPU socket in a ComputeHost. 
 ~~~
     /**
-     * MIPS値．
+     * MIPS
      */
     private long mips;
 
     /**
-     * このCloudCPUが持っているCoreのマップ．
+     * CPU Core map of this CloudCPU. 
      */
     private HashMap<Long, Core> coreMap;
 
     /**
-     * このCloudCPUのID
+     * Cloud CPU ID
      */
     private String prefix;
 ~~~
@@ -173,23 +171,23 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
      */
     private long usedMips;
 ~~~
-- 通信帯域幅は，ComputeHostのNIC，及びCloudで設定します．つまりComputeHostはLAN内での帯域幅であり，Cloudは外部ネットワークへの帯域幅です．
-- 以上の構成は，`nfv.properties`で設定します．
-### SFCスケジューリングアルゴリズムについて
-- **net.gripps.cloud.nfv**のパッケージ配下にある，`clustering`，`fairscheduling`，`listscheduling`, `optimization`パッケージに入っています．
-- **Clustering**: SF (Service Function)をクラスタリングしてvCPUへ割り当てた後，スケジューリングを行うアルゴリズム**SF-CUV (SF-Clustering for Utilizing vCPUs）**，及び階層型クラスタリングアルゴリズムである**HClustering(HierarchicalVNFClusteringAlgorithm by Lee Tesu**)が実装されています．
-- **listscheduling**: HEFT, PEFT, FWS，Randomアルゴリズムが実装されています．
-- **optimization**: CoordVNFAlgorithmが実装されています．
+- Bandwidth is set from ComputeHostのNIC and Cloud. That is, BW of each ComputeHost is the one in LAN, and the one of Cloud is an external BW. 
+- Above configuration is defined in`nfv.properties`. 
+### SFC scheduling algorithm
+- Under the **net.gripps.cloud.nfv** package, each scheduling algorithm is located in packages of `clustering`，`fairscheduling`，`listscheduling`, `optimization`. 
+- **Clustering**: Algorithms that clusterings each SF (Service Function) and ordering by **SF-CUV (SF-Clustering for Utilizing vCPUs）** and **HClustering(HierarchicalVNFClusteringAlgorithm by Lee Tesu**) are implemented. 
+- **listscheduling**: HEFT, PEFT, FWS，Random algorithms are included. 
+- **optimization**: CoordVNFAlgorithm is included. 
 ### SFCの構造について
-- SFC: `net.gripps.cloud.nfv.sfc.SFC`です．この中で，
+- SFC: `net.gripps.cloud.nfv.sfc.SFC`. In this class, the following SF map is defined. 
 ~~~
     /**
      * VNFのMap
      */
     private HashMap<Long, VNF> vnfMap;
 ~~~
-があり，(VNFのID, VNF)のマップが格納されています．
-- VNF: 実態はタスクであり，SF(サービスファンクション）です．`net.gripps.cloud.nfv.sfc.VNF`に定義されていますので見て下さい．
+where the map of (VNF ID, SF) is defined. 
+- VNF: a Task/SF(Service function)．please refer to `net.gripps.cloud.nfv.sfc.VNF`. 
 - VNFのIDは，`private Vector<Long> IDVector`となっており，**Index 0: SFCのID, Index1: VNFのID**です．つまり，VNFのIDを知りたければインデックス1の値を見ることになります．
 - VNFには，` protected String vCPUID`そして，VNFの割当先vCPUのIDが定義されていますので，適宜，セットしてください．
 #### 新規にSFCスケジューリングアルゴリズムを作成する方法（listスケジューリングの場合）
