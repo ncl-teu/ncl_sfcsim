@@ -1,5 +1,6 @@
 # ncl_sfcsim
 SFC (Service Function Chaining) Simulator
+- For README in Japanese, see [here](https://github.com/ncl-teu/ncl_sfcsim/blob/master/README_JP.md). 
 ## セットアップ
 - Java8 (JRE1.8)で動作確認しています．JDKは1.8．それ以上のバージョンだと，保証できません．
 - コンパイルはIDEがあればそのIDEの方法できますが，Antを使うと便利です（もちろん，antのbinディレクトリにpathを通しておいて下さい）．Antを使う場合は，`ant build`コマンドでビルドします．すると，classesディレクトリが生成されて，そこにclassファイル群が入ります．
