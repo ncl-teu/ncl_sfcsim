@@ -106,7 +106,7 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
      */
     private String prefix;
 ~~~
-- **CPUコア(net.gripps.cloud.core.Core)**:A CPU core in a CloudCPU. 
+- **CPU Core(net.gripps.cloud.core.Core)**:A CPU core in a CloudCPU. 
 ~~~
     /**
      * # of threads. If Hyper-Threading is enable, this value is set as 2. otherwise, it is 1. 
@@ -143,7 +143,7 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
      */
     private String prefix;
 ~~~
-- **vCPU(net.gripps.cloud.core.VCPU)**: A vCPU in a CPU core. **We assume that each SF is allocated to a vCPU. **
+- **vCPU(net.gripps.cloud.core.VCPU)**: A vCPU in a CPU core. **We assume that each SF is allocated to a vCPU.**
 ~~~
     /**
      * vCPU ID, that is composed of dc_id^host_id^cpu_id^core_id^number. 
@@ -178,40 +178,40 @@ The actual used environmental class is `net.gripps.cloud.nfv.NFVEnvironment`, th
 - **Clustering**: Algorithms that clusterings each SF (Service Function) and ordering by **SF-CUV (SF-Clustering for Utilizing vCPUs）** and **HClustering(HierarchicalVNFClusteringAlgorithm by Lee Tesu**) are implemented. 
 - **listscheduling**: HEFT, PEFT, FWS，Random algorithms are included. 
 - **optimization**: CoordVNFAlgorithm is included. 
-### SFCの構造について
+### SFC structure (workflow/DAG)
 - SFC: `net.gripps.cloud.nfv.sfc.SFC`. In this class, the following SF map is defined. 
 ~~~
     /**
-     * VNFのMap
+     * VNF Map
      */
     private HashMap<Long, VNF> vnfMap;
 ~~~
 where the map of (VNF ID, SF) is defined. 
 - VNF: a Task/SF(Service function)．please refer to `net.gripps.cloud.nfv.sfc.VNF`. 
-- VNFのIDは，`private Vector<Long> IDVector`となっており，**Index 0: SFCのID, Index1: VNFのID**です．つまり，VNFのIDを知りたければインデックス1の値を見ることになります．
-- VNFには，` protected String vCPUID`そして，VNFの割当先vCPUのIDが定義されていますので，適宜，セットしてください．
-#### 新規にSFCスケジューリングアルゴリズムを作成する方法（listスケジューリングの場合）
-1. BaseVNFSchedulingAlgorithmを継承する．
+- VNF ID is，`private Vector<Long> IDVector`, **Index 0: SFC ID, Index1: VNF ID**．i.e., VNF ID exists at index 1.
+- In VNF，` protected String vCPUID` and the allocation target vCPU ID are defined. 
+#### How to create a new SFC schduling algorithm for list-based scheduling. 
+1. Extends `BaseVNFSchedulingAlgorithm`. 
 ~~~
-public class 新規アルゴリズムのクラス名 extends BaseVNFSchedulingAlgorithm 
+public class NEW_CLASS extends BaseVNFSchedulingAlgorithm 
 ....
 ~~~
-2. コンストラクタでsuper(env, sfc)を呼び出す．
+2. Call super(env, sfc) in the constructor. 
 ~~~
-    public 新規アルゴリズムのクラス名(CloudEnvironment env, SFC sfc) {
+    public NEW_CLASS(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
     }
 
 ~~~
-この時点で，スケジューリングするための初期設定がなされます．
+The initialization procedure is performed at this stage. 
 
-3. 優先度に従ってSFを選択する(vnfとする）．そして，vnfをスケジュールする．例えば以下のようにしてください．
+3. Please implement the SF selection according to a specific priority. Then schedule the chosen SF as follows: 
 ~~~
     public void mainProcess() {
-        //未スケジュールなVNFが残っている間，行うループ
+        //Loop during un-scheduled VNF exists. 
         while (!this.getUnScheduledVNFSet().isEmpty()) {
             VNF vnf = this.selectVNF();
-            //vcpu全体から，vnfの割当先を選択する．
+            //Select the SF allocation target vCPU. 
             this.scheduleVNF(vnf, this.vcpuMap);
         }
         double val = -1;
@@ -223,7 +223,7 @@ public class 新規アルゴリズムのクラス名 extends BaseVNFSchedulingAl
                 val = endVNF.getFinishTime();
             }
         }
-        //応答時間を決める．
+        //Set the makespan. 
         this.makeSpan = val;
     }
 ~~~
