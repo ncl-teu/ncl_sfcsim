@@ -6,71 +6,65 @@ SFC (Service Function Chaining) Simulator
 - Build: please run ant by `ant build`. 
 - Run: plsease run by `nfvrun.bat` for windows or `./nfvrun.sh` for Linux. 
 ## Structure of the simulator. 
-- The main class is loated in `/src/net/gripps/cloud/nfv/main/`. In particular, please refer to **NFVSchedulingTest.java** or **NFVTest.java** in the directory. 
+- The main class is located in `/src/net/gripps/cloud/nfv/main/`. In particular, please refer to **NFVSchedulingTest.java** or **NFVTest.java** in the directory. 
 - This simulator loade the config. file named `nfv.properties` before the execution. Pelase set parameters in **nfv.properties** as needed. 
 ![1](https://user-images.githubusercontent.com/4952618/78368539-be1dfa00-75fe-11ea-9900-f474a58acdf0.jpg)
 ### Assumed environment
-- 計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
+- The class that covers the whole network is `net.gripps.cloud.core.CloudEnvironment`. In this class, the following fields are defined. 
 `net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
 ~~~
     /**
-     * データセンター（クラウド）のマップで，(クラウドのID, クラウド）
+     * Map object as a data center (cloud): <cloudID, cloud>
      */
     protected HashMap<Long, Cloud> dcMap;
     
     /**
-    *(文字列のID，ComputeHost)によるComputeHostのマップ
+    * The map of compute hosts: <prefix, computehost>
     */
     protected HashMap<String, ComputeHost> global_hostMap;
     
     /**
-    * 直接アクセスするために用意された，CloudCPUのマップ．Stringは，CloudCPUのID
+    * The map of cpus in a compute host: <cloudCPU's prefix, cpu> 
     */
     protected HashMap<String, CloudCPU> global_cpuMap;
     
     /**
-    * 直接アクセスするために用意された，Coreのマップ．Stringは，CoreのID
+    * The map of CPU cores in a cloudCPU: <Core prefix, core>
     */
     protected HashMap<String, Core> global_coreMap;
     
     /**
-    * 直接アクセスするために用意された，VMのマップ．Stringは，VMのID
+    * The map of VMs: <VM prefix, VM>
     */
     protected HashMap<String, VM> global_vmMap;
     
     /**
-    * 直接アクセスするために用意された，vCPUのマップ．Stringは，VCPUのID
+    * The map of vCPUs: <vCPU prefix, vCPU> 
     */
     protected HashMap<String, VCPU> global_vcpuMap;
 
     /**
-     * データセンター間の帯域幅
+     * Bandwidth among data centers (i.e., external BWs)
      */
     protected long[][] dcLinkMatrix;
 ~~~
-- **Cloud(net.gripps.cloud.core.Cloud)**: 一番大きな単位であり，1データセンターと考えて下さい．複数指定可能．
+- **Cloud(net.gripps.cloud.core.Cloud)**: one data center. 
 ~~~
     /**
-     * このクラウドのID
+     * Cloud ID
      */
     protected  Long id;
 
     /**
-     * ComputeHostのマップ
+     * The map of ComputeHosts. 
      */
     protected HashMap<Long, ComputeHost> computeHostMap;
 
     /**
-     * このクラウド（データセンター）の帯域幅．実際にはルータの外側の帯域幅になる．
+     * The external BW of the cloud. 
      */
     protected long bw;
 
-    /**
-     * ファイルシステムとなるホスト
-     * MapReduceで使う
-     *
-     */
-    protected FSHost fsHost;
 ~~~
 - **ComputeHost(net.gripps.cloud.core.ComputeHost)**: Cloud内にある物理計算機．Cloud内で複数指定可能．↓のフィールド変数にはないが，Machineクラスを継承しており，CPUソケットのマップ`private TreeMap<Long, CPU> cpuMap;`も保持している．
 ~~~
