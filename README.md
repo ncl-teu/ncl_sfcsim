@@ -1,16 +1,15 @@
 # ncl_sfcsim
 SFC (Service Function Chaining) Simulator
 - For README in Japanese, see [here](https://github.com/ncl-teu/ncl_sfcsim/blob/master/README_JP.md). 
-## セットアップ
-- Java8 (JRE1.8)で動作確認しています．JDKは1.8．それ以上のバージョンだと，保証できません．
-- コンパイルはIDEがあればそのIDEの方法できますが，Antを使うと便利です（もちろん，antのbinディレクトリにpathを通しておいて下さい）．Antを使う場合は，`ant build`コマンドでビルドします．すると，classesディレクトリが生成されて，そこにclassファイル群が入ります．
-- IDEを使う場合は，classpathとしてlib内にある全jarファイル＋classesディレクトリを追加してください．おすすめIDEは，IntelliJ IDEAです．
-- 実行は，shファイル（Linuxの場合）やbatファイル（Windowsの場合）を使って下さい．
-## 仕組み
-- Mainメソッドは，`/src/net/gripps/cloud/nfv/main/`内にあるものを使います．特に，**NFVSchedulingTest.java**や，**NFVTest.java**を参照してください．
-- 実行の際に，設定ファイルである`nfv.properties`を読み込みます．**nfv.properties**を想定環境に応じてパラメータ設定してください．
+## Setup
+- We confirmed the simulator runs on Java8(JRE1.8).
+- Build: please run ant by `ant build`. 
+- Run: plsease run by `nfvrun.bat` for windows or `./nfvrun.sh` for Linux. 
+## Structure of the simulator. 
+- The main class is loated in `/src/net/gripps/cloud/nfv/main/`. In particular, please refer to **NFVSchedulingTest.java** or **NFVTest.java** in the directory. 
+- This simulator loade the config. file named `nfv.properties` before the execution. Pelase set parameters in **nfv.properties** as needed. 
 ![1](https://user-images.githubusercontent.com/4952618/78368539-be1dfa00-75fe-11ea-9900-f474a58acdf0.jpg)
-### シミュレータ上の処理環境（クラウド）について
+### Assumed environment
 - 計算機資源のネットワーク全体を管理するクラスは，`net.gripps.cloud.core.CloudEnvironment`になります．特に，このSFCで用いられているのは
 `net.gripps.cloud.nfv.NFVEnvironment`で，CloudEnvironmentを継承しています．
 ~~~
