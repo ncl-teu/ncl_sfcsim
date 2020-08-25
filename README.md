@@ -272,5 +272,4 @@ These abstract methods requires to impelment how to select a SF cluster, and how
 
 see [LICENSE](https://github.com/ncl-teu/ncl_sfcsim/blob/master/LICENSE)
 
-Guard object of logger for debugging.
 Copyright (c) 2019 Hidehiro Kanemitsu <kanemitsuh@stf.teu.ac.jp>
