@@ -1,6 +1,5 @@
 package net.gripps.cloud.nfv.sfc;
 
-import com.sun.javafx.embed.HostDragStartListener;
 import net.gripps.cloud.CloudUtil;
 import net.gripps.cloud.core.*;
 import net.gripps.cloud.nfv.NFVEnvironment;
