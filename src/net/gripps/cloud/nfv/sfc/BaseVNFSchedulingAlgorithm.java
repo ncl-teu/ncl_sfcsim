@@ -1105,7 +1105,7 @@ public class BaseVNFSchedulingAlgorithm {
         ComputeHost toHost = toCloud.getComputeHostMap().get(toHostID);
         long hostBW = NFVUtil.MAXValue;
         if(isSameDC){
-            if (fromHost.getDcID() == toHost.getMachineID()) {
+            if (fromHost.getMachineID() == toHost.getMachineID()) {
                 //同一ホストなら，0を返す．
                 return 0;
             } else {
