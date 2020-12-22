@@ -56,6 +56,16 @@ public class VM /*extends Machine*/ implements Serializable {
         this.ipAddr = null;
 
     }
+    
+  public long getMIPS(){
+        if(this.getvCPUMap().isEmpty()){
+            return -1;
+        }else{
+            Iterator<VCPU> vIte = this.getvCPUMap().values().iterator();
+            VCPU vcpu = vIte.next();
+            return vcpu.getMips();
+        }
+    }
 
     public String getIpAddr() {
         return ipAddr;
