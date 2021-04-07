@@ -165,6 +165,8 @@ public class VNF  implements Serializable{
     protected double aveOCT;
 
 
+    //
+    protected long imageSize;
 
 
 
@@ -584,4 +586,9 @@ public class VNF  implements Serializable{
     public void setAveOCT(double aveOCT) {
         this.aveOCT = aveOCT;
     }
+
+    //
+    public long getImageSize() { return imageSize; }
+
+    public void setImageSize(long imageSize) { this.imageSize = imageSize; }
 }

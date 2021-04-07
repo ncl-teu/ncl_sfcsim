@@ -6,7 +6,6 @@ import net.gripps.cloud.core.VCPU;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.clustering.HUtil;
-import net.gripps.cloud.nfv.clustering.HierarchicalVNFClusteringAlgorithm;
 import net.gripps.cloud.nfv.clustering.RandomVNFClusteringAlgorithm;
 import net.gripps.cloud.nfv.clustering.SF_CUVAlgorithm;
 import net.gripps.cloud.nfv.listscheduling.FWS_VNFAlgorithm;
@@ -115,10 +114,6 @@ public class HClusteringTest {
         System.out.println("SLR[RandomVNFClustering]:" + NFVUtil.getRoundedValue(alg1.getMakeSpan() / alg1.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg1.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg1.getHostSet().size() +
                 "/# of Ins:" + alg1.calcTotalFunctionInstanceNum());
 
-        HierarchicalVNFClusteringAlgorithm hclustering = new HierarchicalVNFClusteringAlgorithm(env4, sfc4);
-        hclustering.mainProcess();
-        System.out.println("SLR[HClustering]:" + NFVUtil.getRoundedValue(hclustering.getMakeSpan() / hclustering.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + hclustering.getAssignedVCPUMap().size() + "/ # of Hosts:" + hclustering.getHostSet().size() +
-                "/# of Ins:" + hclustering.calcTotalFunctionInstanceNum());
 /*
 //ランダムリストスケジューリングアルゴリズム
         RandomVNFListSchedulingAlgorithm alg4 = new RandomVNFListSchedulingAlgorithm(env4, sfc4);

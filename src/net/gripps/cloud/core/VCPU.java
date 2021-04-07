@@ -8,6 +8,7 @@ import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.environment.CPU;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Vector;
 
@@ -71,6 +72,10 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
 
     private boolean isFake;
 
+
+    //
+    private HashMap<Long, VNF> dlVNFMap;
+
     public VCPU(){
         this.isFake = true;
 
@@ -101,6 +106,10 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
         this.remainedCapacity = mips * 10000;
         this.isFake = false;
 
+
+        this.dlVNFMap = new HashMap<Long, VNF>();
+
+
     }
 
     public VCPU(String prefix, String cPrefix, HashMap<String, Long> prefixMap, String  vmID, long mips, long usedMips) {
@@ -117,7 +126,23 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
         this.finishTimeAtClusteringPhase = 0d;
         this.isFake = false;
 
+
+        this.dlVNFMap = new HashMap<Long, VNF>();
+
+
     }
+
+    public HashMap<Long, VNF> getDlVNFMap(){
+        return dlVNFMap;
+    }
+
+    public void setDlVNFMap(HashMap<Long, VNF> dlVNFMap){
+        this.dlVNFMap = dlVNFMap;
+    }
+
+
+
+
 
     @Override
     public OutputSplit mapProcess(InputSplit is) {

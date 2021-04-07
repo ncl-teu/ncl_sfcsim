@@ -1,5 +1,7 @@
 package net.gripps.cloud.nfv.sfc;
 
+
+//import com.sun.javafx.embed.HostDragStartListener;
 import net.gripps.cloud.CloudUtil;
 import net.gripps.cloud.core.*;
 import net.gripps.cloud.nfv.NFVEnvironment;
@@ -11,6 +13,8 @@ import net.gripps.cloud.nfv.fairscheduling.HostStatistics;
 import net.gripps.clustering.common.aplmodel.CustomIDSet;
 import net.gripps.clustering.common.aplmodel.DataDependence;
 import net.gripps.environment.CPU;
+
+
 
 import java.util.*;
 
@@ -110,45 +114,11 @@ public class BaseVNFSchedulingAlgorithm {
 
     protected HashMap<String, HostStatistics> fairHostMap;
 
-
     /**
      * トータルとしてのファンクションインスタンス数
      * 1インスタンス = 1ファンクション　とした場合．
      */
     protected long totalFunctionInstanceNum;
-
-    protected TreeMap<Long, HashMap<Long, VNF>> tmpVNFMap;
-
-    public BaseVNFSchedulingAlgorithm(NFVEnvironment env) {
-        this.makeSpan = -1;
-        this.env = env;
-        this.sfc = sfc;
-        this.maxSpeed = -1;
-        this.minSpeed = NFVUtil.MAXValue;
-        this.aveSpeed = 0;
-        this.maxBW = -1;
-        this.minBW = NFVUtil.MAXValue;
-        this.aveBW = 0;
-        this.freeVNFSet = new CustomIDSet();
-        //    this.scheduledVNFSet = new CustomIDSet();
-        this.unScheduledVNFSet = new CustomIDSet();
-        this.vcpuMap = new HashMap<String, VCPU>();
-        this.assignedVCPUMap = new HashMap<String, VCPU>();
-        this.constrainedMode = NFVUtil.cloud_constrained_mode;
-        this.hostSet = new HashMap<String, ComputeHost>();
-        this.totalFunctionInstanceNum = 0;
-        this.totalCPProcTimeAtMaxSpeed = 0;
-        this.fairHostMap = new HashMap<String, HostStatistics>();
-
-        /**
-         * (レベル，Map)
-         */
-
-        this.tmpVNFMap = new TreeMap<Long, HashMap<Long, VNF>>();
-
-    }
-
-
 
 
     public BaseVNFSchedulingAlgorithm(CloudEnvironment env, SFC sfc) {
@@ -172,12 +142,6 @@ public class BaseVNFSchedulingAlgorithm {
         this.totalCPProcTimeAtMaxSpeed = 0;
         this.fairHostMap = new HashMap<String, HostStatistics>();
         this.initialize();
-        /**
-         * (レベル，Map)
-         */
-
-        this.tmpVNFMap = new TreeMap<Long, HashMap<Long, VNF>>();
-
     }
 
 
@@ -242,129 +206,6 @@ public class BaseVNFSchedulingAlgorithm {
         }
         this.totalCPProcTimeAtMaxSpeed = this.calcExecTime(totalMax, this.aveSpeed);
 
-
-    }
-
-    public HashMap<Long, VNF> getLevelMap(SFC sfc, Long id){
-        ArrayList<HashMap<Long, VNF>> levelList = sfc.getLevelVNFSet();
-        Iterator<HashMap<Long, VNF>> lIte = levelList.iterator();
-        HashMap<Long, VNF> retMap = null;
-        while(lIte.hasNext()){
-            HashMap<Long, VNF> v = lIte.next();
-            if(v.containsKey(id)){
-                retMap = v;
-                break;
-            }
-        }
-        return retMap;
-
-    }
-    public long callRLevel(SFC sfc, VNF vnf, CustomIDSet set){
-
-        if(set.contains(vnf.getIDVector().get(1))){
-            return vnf.gethLevel();
-        }
-        if(vnf.gethLevel() != -1){
-            set.add(vnf.getIDVector().get(1));
-            return vnf.gethLevel();
-        }
-        if(vnf.getDpredList().isEmpty()){
-            vnf.sethLevel(0);
-            set.add(vnf.getIDVector().get(1));
-
-            return 0;
-        }else{
-            long currentMaxLevel = -1;
-
-            Iterator<DataDependence> dpredIte = vnf.getDpredList().iterator();
-            while(dpredIte.hasNext()){
-                DataDependence dpred = dpredIte.next();
-                VNF predVNF = sfc.findVNFByLastID(dpred.getFromID().get(1));
-                long maxLevel = -1;
-                if(predVNF.gethLevel() == -1){
-                     maxLevel = this.callRLevel(sfc, predVNF, set);
-                }else{
-                    maxLevel = predVNF.gethLevel();
-                }
-                if(currentMaxLevel <= maxLevel){
-                    currentMaxLevel = maxLevel;
-                }
-            }
-            vnf.sethLevel(currentMaxLevel + 1);
-            if( this.tmpVNFMap.containsKey(vnf.gethLevel())){
-                HashMap<Long, VNF> vMap =  this.tmpVNFMap.get(vnf.gethLevel());
-                vMap.put(vnf.getIDVector().get(1), vnf);
-            }else{
-                HashMap<Long, VNF> vMap = new HashMap<Long, VNF>();
-                vMap.put(vnf.getIDVector().get(1), vnf);
-                this.tmpVNFMap.put(vnf.gethLevel(), vMap);
-            }
-            set.add(vnf.getIDVector().get(1));
-
-            return vnf.gethLevel();
-        }
-    }
-    /**
-     * SFCを分析して，階層のレベルを付与します．
-     *
-     */
-    public void  configLevel(){
-
-        Iterator<Long> eIte = this.sfc.getEndVNFSet().iterator();
-        CustomIDSet set = new CustomIDSet();
-
-        while(eIte.hasNext()){
-            long eLevel = -1;
-            Long eid = eIte.next();
-            VNF end = this.sfc.findVNFByLastID(eid);
-            Iterator<DataDependence> dpredIte =  end.getDpredList().iterator();
-            long maxLevel = -1;
-            while(dpredIte.hasNext()){
-                DataDependence dpred = dpredIte.next();
-                VNF preVNF = this.sfc.findVNFByLastID(dpred.getFromID().get(1));
-                if(set.contains(preVNF.getIDVector().get(1))){
-                    maxLevel = preVNF.gethLevel();
-                }else{
-                    maxLevel = this.callRLevel(this.sfc, preVNF, set);
-                }
-                if(eLevel <= maxLevel){
-                    eLevel = maxLevel;
-                }
-                end.sethLevel(eLevel + 1);
-
-            }
-            if( this.tmpVNFMap.containsKey(end.gethLevel())){
-                HashMap<Long, VNF> vMap =  this.tmpVNFMap.get(end.gethLevel());
-                vMap.put(end.getIDVector().get(1), end);
-            }else{
-                HashMap<Long, VNF> vMap = new HashMap<Long, VNF>();
-                vMap.put(end.getIDVector().get(1), end);
-                this.tmpVNFMap.put(end.gethLevel(), vMap);
-            }
-        }
-        Iterator<Long> lIte = this.tmpVNFMap.keySet().iterator();
-        while (lIte.hasNext()) {
-            Long id = lIte.next();
-            HashMap<Long, VNF> v = this.tmpVNFMap.get(id);
-            this.sfc.getLevelVNFSet().add(v);
-        }
-
-
-
-
-    }
-
-    public void recursiveConfigLevel(SFC sfc, VNF vnf){
-        //先行のVNFをみる．
-        Iterator<DataDependence> dpreIte = vnf.getDpredList().iterator();
-        HashMap<Long, VNF> retMap = this.getLevelMap(sfc, vnf.getIDVector().get(1));
-
-        if(retMap!= null){
-            //何もしない．
-
-        }else{
-            //先行タスクの最大のレベル+1とする．
-        }
 
     }
 
@@ -505,9 +346,14 @@ public class BaseVNFSchedulingAlgorithm {
                 retCPU = cpu;
             }
         }
+
+        double dTime = this.calcDownloadImageTime(vnf,retCPU);
+        if(dTime == -1){
+            dTime = 0;
+        }
         //vnfの時刻を更新する．
-        vnf.setStartTime(ret_starttime);
-        vnf.setFinishTime(ret_finishtime);
+        vnf.setStartTime(ret_starttime + dTime);
+        vnf.setFinishTime(ret_finishtime + dTime);
         vnf.setEST(ret_starttime);
         vnf.setvCPUID(retCPU.getPrefix());
 
@@ -533,6 +379,88 @@ public class BaseVNFSchedulingAlgorithm {
         //Freeリスト更新
         this.updateFreeList(vnf);
 
+
+    }
+
+
+    public double calcDownloadImageTime(VNF vnf, VCPU vcpu){
+        VM vm = this.findVM(vcpu);
+        if(vm == null){
+            return -1;
+        }
+        if(vm.containsType(vnf.getType())){
+            return 0.0d;
+        }else{
+            return this.calcImageComTime(vnf.getImageSize(), vcpu);
+        }
+    }
+
+    public VM findVM(VCPU vcpu){
+        Iterator<VM> vIte = this.env.getGlobal_vmMap().values().iterator();
+        VM retVM = null;
+        while(vIte.hasNext()){
+            VM vm = vIte.next();
+            if(vm.getvCPUMap().containsKey(vcpu.getPrefix())){
+                retVM = vm;
+                break;
+            }
+        }
+        return retVM;
+    }
+
+    /**
+     * imageDataをリポジトリからダウンロードするのにかかる時間を計算する。
+     *
+     * @param dataSize
+
+     * @return
+     */
+    public double calcImageComTime(long dataSize, VCPU vcpu) {
+        //DCの情報@vcpu側
+        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
+        //DBの情報@リポジトリ
+        NFVEnvironment nEnv = (NFVEnvironment)this.env;
+        //リポジトリのdc
+        Long toDCID = nEnv.getDockerRepository().getDcID();
+
+        //Long toDCID = CloudUtil.getInstance().getDCID(toVCPU.getPrefix());
+        long dcBW = NFVUtil.MAXValue;
+        Cloud fromCloud = env.getDcMap().get(fromDCID);
+        Cloud toCloud = env.getDcMap().get(toDCID);
+        boolean isSameDC = false;
+        //同一クラウド内であれば，DC間の通信は考慮しなくて良い．
+        if (fromDCID.longValue() == toDCID.longValue()) {
+            isSameDC = true;
+        } else {
+            //DCが異なれば，DC間の通信も考慮スべき．
+            dcBW = Math.min(fromCloud.getBw(), toCloud.getBw());
+
+        }
+        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
+
+
+        //後は，ホスト間での通信
+        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
+        ComputeHost toHost = nEnv.getDockerRepository();
+        long hostBW = NFVUtil.MAXValue;
+        if(isSameDC){
+            if (fromHost.getMachineID() == toHost.getMachineID()) {
+                //同一ホストなら，0を返す．
+                return 0;
+            } else {
+                hostBW = Math.min(fromHost.getBw(), toHost.getBw());
+
+            }
+        }else{
+            hostBW = Math.min(fromHost.getBw(), toHost.getBw());
+        }
+
+
+        long realBW = Math.min(dcBW, hostBW);
+
+        double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
+
+        return time;
 
     }
 
@@ -1113,7 +1041,6 @@ public class BaseVNFSchedulingAlgorithm {
             }
         }else{
             hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-
         }
 
 
@@ -1263,14 +1190,6 @@ public class BaseVNFSchedulingAlgorithm {
 
         return info;
 
-
-    }
-
-    /**
-     * すべてのホストから，割り当て済みホストを抽出し，
-     * 応答時間（duration）の公平性を計算する．
-     */
-    public void calcFairness_duration(){
 
     }
 
