@@ -6,6 +6,7 @@ import net.gripps.environment.Machine;
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeMap;
 
@@ -42,6 +43,8 @@ public class VM /*extends Machine*/ implements Serializable {
 
     private String ipAddr;
 
+    private HashSet<Integer> typeSet;
+
 
 
 
@@ -54,17 +57,8 @@ public class VM /*extends Machine*/ implements Serializable {
         this.ramSize = ramSize;
         this.orgVMID = orgVMID;
         this.ipAddr = null;
+        this.typeSet = new HashSet<Integer>();
 
-    }
-    
-  public long getMIPS(){
-        if(this.getvCPUMap().isEmpty()){
-            return -1;
-        }else{
-            Iterator<VCPU> vIte = this.getvCPUMap().values().iterator();
-            VCPU vcpu = vIte.next();
-            return vcpu.getMips();
-        }
     }
 
     public String getIpAddr() {
@@ -124,6 +118,17 @@ public class VM /*extends Machine*/ implements Serializable {
         }
     }
 
+    public HashSet<Integer> getTypeSet() {
+        return typeSet;
+    }
+
+    public void setTypeSet(HashSet<Integer> typeSet) {
+        this.typeSet = typeSet;
+    }
+
+    public boolean containsType(int type){
+        return this.typeSet.contains(new Integer(type));
+    }
 
     /**
      * このVM自体のCPU使用率を計算します．

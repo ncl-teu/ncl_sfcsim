@@ -41,11 +41,17 @@ public class SFCGenerator {
      */
     protected int startVNFNum;
 
+    /**
+     * (typeID, size)のhashmap
+     */
+    protected HashMap<Long, Long> typMap;
+
 
 
     protected  SFCGenerator() {
         this.aplIDSet = new TreeSet();
         this.sfcList = new LinkedList<SFC>();
+        this.typMap = new HashMap<Long, Long>();
 
     }
 
@@ -66,7 +72,7 @@ public class SFCGenerator {
         try {
             //最上位レイヤ(第一層)におけるファンクション数
             long tasknum = NFVUtil.sfc_vnf_num;
-
+            this.typMap = new HashMap<Long, Long>();
             //APLを生成して，シングルトンにセットする．
             SFC apl = new SFC(-1, -1, -1, -1, -1, -1,
                     -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
@@ -194,6 +200,23 @@ public class SFCGenerator {
                     //最上位レイヤ(第一層)におけるファンクション数
                     //最大階層が1であるときは，そのまま実際の値を作る．
                     VNF vnf = this.buildChildVNF();
+
+
+
+                    //VNFにimage sizeをセットする。
+                    //乱数を決める
+                    long imageSize = NFVUtil.genLong(NFVUtil.vnf_image_size_min,NFVUtil.vnf_image_size_max);
+                    Long typeID = Long.valueOf(vnf.getType());
+                    if(this.typMap.containsKey(typeID)){
+                        imageSize = this.typMap.get(typeID);
+                    }else{
+                        this.typMap.put(typeID, imageSize);
+                    }
+                    //乱数で決めたimageSizeをvnfにセットする
+                    vnf.setImageSize(imageSize);
+
+
+
                     //現在の要素数(1から開始）
                     long assignedID = startIDX+j;
 

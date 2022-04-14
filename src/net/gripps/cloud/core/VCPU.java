@@ -7,9 +7,7 @@ import net.gripps.cloud.nfv.sfc.StartTimeComparator;
 import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.environment.CPU;
 
-import java.util.HashMap;
-import java.util.PriorityQueue;
-import java.util.Vector;
+import java.util.*;
 
 /**
  * Created by kanemih on 2018/11/01.
@@ -64,12 +62,22 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
      */
     private PriorityQueue<VNF> vnfQueue;
 
+    /**
+     * VNFのコンテナイメージのDL順番を
+     */
+    private LinkedList<VNF> dlQueue;
+
+
 
     private double finishTimeAtClusteringPhase;
 
     private  long  remainedCapacity;
 
     private boolean isFake;
+
+
+    //
+    private HashMap<Long, VNF> dlVNFMap;
 
     public VCPU(){
         this.isFake = true;
@@ -99,8 +107,26 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
         this.finishTimeAtClusteringPhase = 0d;
 
         this.remainedCapacity = mips * 10000;
-        this.isFake = false;
 
+        this.dlQueue = new LinkedList<VNF>();
+
+
+
+        this.dlVNFMap = new HashMap<Long, VNF>();
+
+
+    }
+
+    public LinkedList<VNF> getDlQueue() {
+        return dlQueue;
+    }
+
+    public void setDlQueue(LinkedList<VNF> dlQueue) {
+        this.dlQueue = dlQueue;
+    }
+
+    public void addDLQueue(VNF vnf){
+        dlQueue.add(vnf);
     }
 
     public VCPU(String prefix, String cPrefix, HashMap<String, Long> prefixMap, String  vmID, long mips, long usedMips) {
@@ -117,7 +143,24 @@ public class VCPU extends CPU  implements Runnable, IMapReduce {
         this.finishTimeAtClusteringPhase = 0d;
         this.isFake = false;
 
+
+        this.dlVNFMap = new HashMap<Long, VNF>();
+        this.dlQueue = new LinkedList<VNF>();
+
+
     }
+
+    public HashMap<Long, VNF> getDlVNFMap(){
+        return dlVNFMap;
+    }
+
+    public void setDlVNFMap(HashMap<Long, VNF> dlVNFMap){
+        this.dlVNFMap = dlVNFMap;
+    }
+
+
+
+
 
     @Override
     public OutputSplit mapProcess(InputSplit is) {

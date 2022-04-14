@@ -71,6 +71,17 @@ public class NFVUtil extends CloudUtil {
     public static int cmwsl_sched_area;
 
 
+    //VNFのコンテナサイズの最小値、最大値
+
+    public static long vnf_image_size_min;
+
+    public static long vnf_image_size_max;
+
+    public static long repository_bw;
+
+    public static int cloud_container_dl_mode;
+
+
    // public static double nfv_fairness_weight_rt;
 
 
@@ -136,7 +147,12 @@ public class NFVUtil extends CloudUtil {
             NFVUtil.vnf_type_max = Integer.valueOf(prop.getProperty("vnf_type_max")).intValue();
             //NFVUtil.sfc_multimode =  Integer.valueOf(prop.getProperty("sfc_multimode")).intValue();
 
+            //
+            NFVUtil.vnf_image_size_min = Long.valueOf(prop.getProperty("vnf_image_size_min")).longValue();
+            NFVUtil.vnf_image_size_max = Long.valueOf(prop.getProperty("vnf_image_size_max")).longValue();
+            NFVUtil.repository_bw = Long.valueOf(prop.getProperty("repository_bw")).longValue();
 
+            NFVUtil.cloud_container_dl_mode = Integer.valueOf(prop.getProperty("cloud_container_dl_mode")).intValue();
 
         }catch(Exception e){
             e.printStackTrace();

@@ -165,6 +165,13 @@ public class VNF  implements Serializable{
     protected double aveOCT;
 
 
+    //
+    protected long imageSize;
+
+    protected double dlStartTime;
+
+    protected double dlFinishTime;
+
 
 
 
@@ -214,7 +221,25 @@ public class VNF  implements Serializable{
         this.priority = -1d;
         this.hLevel = -1;
         this.aveOCT = -1d;
+        this.dlFinishTime = -1d;
+        this.dlStartTime = -1d;
 
+    }
+
+    public double getDlStartTime() {
+        return dlStartTime;
+    }
+
+    public void setDlStartTime(double dlStartTime) {
+        this.dlStartTime = dlStartTime;
+    }
+
+    public double getDlFinishTime() {
+        return dlFinishTime;
+    }
+
+    public void setDlFinishTime(double dlFinishTime) {
+        this.dlFinishTime = dlFinishTime;
     }
 
     public Long getDominantPredID() {
@@ -584,4 +609,9 @@ public class VNF  implements Serializable{
     public void setAveOCT(double aveOCT) {
         this.aveOCT = aveOCT;
     }
+
+    //
+    public long getImageSize() { return imageSize; }
+
+    public void setImageSize(long imageSize) { this.imageSize = imageSize; }
 }
