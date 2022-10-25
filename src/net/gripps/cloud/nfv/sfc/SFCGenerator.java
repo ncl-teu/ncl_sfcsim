@@ -3,6 +3,7 @@ package net.gripps.cloud.nfv.sfc;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.clustering.common.aplmodel.CustomIDSet;
 import net.gripps.clustering.common.aplmodel.DataDependence;
+import net.gripps.clustering.tool.Calc;
 
 import java.util.*;
 
@@ -89,6 +90,40 @@ public class SFCGenerator {
         }
     }
 
+    public SFC  autoconstructFunction() {
+
+        try {
+            //最上位レイヤ(第一層)におけるファンクション数
+            long tasknum = NFVUtil.sfc_vnf_num;
+
+            //APLを生成して，シングルトンにセットする．
+            SFC apl = new SFC(-1, -1, -1, -1, -1, -1,
+                    -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
+            Vector<Long> id = new Vector<Long>();
+            id.add(new Long(1));
+            apl.setIDVector(id);
+
+            //VNF数分だけ，VNFインスタンスを生成する．
+            for (int i = 0; i < tasknum; i++) {
+
+                //最大階層が1であるときは，そのまま実際の値を作る．
+                VNF vnf = this.buildChildVNF();
+                //このときにVNFにはIDが付与される．
+                apl.addVNF(vnf);
+                //SFCGenerator.getIns().getSfc().addVNF(vnf);
+
+            }
+            return apl;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+
+
     /**
      * @param num
      */
@@ -121,6 +156,7 @@ public class SFCGenerator {
     }
 
     public SFC singleSFCProcess() {
+
         this.constructFunction();
         this.assignDependencyProcess();
         //完成したSFCを取得
@@ -135,6 +171,27 @@ public class SFCGenerator {
 
         return this.sfc;
     }
+
+
+    public SFC autoSFCProcess() {
+        //this.setSfc(null);
+        SFC sfc = this.autoconstructFunction();
+        sfc = this.autoassignDependencyProcess(sfc);
+        //完成したSFCを取得
+
+        //this.sfcList.add(sfc);
+        Iterator<VNFCluster> cIte = sfc.getVNFClusterMap().values().iterator();
+        while(cIte.hasNext()){
+            VNFCluster c = cIte.next();
+            c.autoconfigureVNFCluster(sfc);
+        }
+        //this.setSfc(sfc);
+
+        return sfc;
+    }
+
+
+
 
 
     /**
@@ -194,6 +251,12 @@ public class SFCGenerator {
                     //最上位レイヤ(第一層)におけるファンクション数
                     //最大階層が1であるときは，そのまま実際の値を作る．
                     VNF vnf = this.buildChildVNF();
+                    //VNFに，image sizeをセットする．
+                    //乱数を決める．
+                    long imageSize = NFVUtil.genLong(NFVUtil.vnf_image_size_min, NFVUtil.vnf_image_size_max);
+                    //乱数で決めたimageSizeを，vnfにセットする．
+                    vnf.setImageSize(imageSize);
+
                     //現在の要素数(1から開始）
                     long assignedID = startIDX+j;
 
@@ -351,6 +414,34 @@ public class SFCGenerator {
         return retSet;
     }
 
+    public TreeSet<Long> autogetCandidateTaskFromOldOnly(SFC pTask, VNF cTask, boolean isdd) {
+        TreeSet allSet = new TreeSet<Long>();
+        TreeSet<Long> tmpSet = new TreeSet<Long>();
+
+        if (pTask.getIDVector().size() == 1) {
+            if (tmpSet.isEmpty()) {
+                tmpSet = this.createIDSet(pTask.getVnfMap());
+            } else {
+
+            }
+            allSet = (TreeSet<Long>) tmpSet.clone();
+
+        } else {
+            allSet = this.createIDSet(pTask.getVnfMap());
+        }
+
+        //allSetから，start候補を外す．
+
+        for (int i = 1; i <= this.startVNFNum; i++) {
+            allSet.remove(new Long(i));
+        }
+        Long cID = cTask.getIDVector().lastElement();
+        TreeSet<Long> retSet = (TreeSet<Long>) allSet.tailSet(cID);
+        retSet.remove(cID);
+        return retSet;
+    }
+
+
     public TreeSet<Long> getCandidateTaskFromOldOnlyMulti(SFC pTask, VNF cTask, boolean isdd) {
         TreeSet allSet = new TreeSet<Long>();
         if(pTask.getIDVector().size() == 1){
@@ -379,6 +470,196 @@ public class SFCGenerator {
 
         retSet.remove(cID);
         return retSet;
+    }
+
+    /**
+     * ファンクション間の依存関係を決めるためのメソッドです．
+     *
+     * @return
+     */
+    public SFC autoassignDependencyProcess(SFC sfc) {
+
+
+        HashMap<Long, VNF> vnfMap = sfc.getVnfMap();
+        int vnfnum = sfc.getVnfMap().size();
+        //深さを設定
+        sfc.setDepth((int) (Math.sqrt(vnfnum) / NFVUtil.depth_alpha));
+        //START/ENDを決める．
+        VNF startVNF = vnfMap.get(new Long(1));
+        VNF endVNF = vnfMap.get(new Long(vnfnum));
+
+        //START/ENDをそれぞれ設定する．
+        sfc.getStartVNFSet().add(new Long(1));
+        sfc.getEndVNFSet().add(new Long(vnfnum));
+
+        CustomIDSet startSet = new CustomIDSet();
+
+        //Startタスクの最大数
+        int start_num = Double.valueOf(vnfnum * NFVUtil.startNumRate).intValue();
+        this.startVNFNum = start_num;
+        //深さ
+        int depth = sfc.getDepth();
+
+        //STARTファンクション設定処理
+        Iterator<VNF> vnfIte = vnfMap.values().iterator();
+        CustomIDSet tmpStartSet = new CustomIDSet();
+        while (vnfIte.hasNext()) {
+            VNF t = vnfIte.next();
+            if (t.getIDVector().get(1) <= start_num) {
+                continue;
+            } else {
+                tmpStartSet.add(t.getIDVector().get(1));
+            }
+        }
+
+        //トップレベルにおける依存関係の決定のためのループ
+        for (int i = 0; i < vnfnum; i++) {
+            //最新のタスクを取得する
+            VNF vnf = vnfMap.get(new Long(i + 1));
+            //もしStartタスクであれば，StartSetへ追加しておく．
+            if (vnf.getDpredList().isEmpty()) {
+                startSet.add(vnf.getIDVector().get(1));
+            }
+
+            //当該タスクがENDタスクであれば，何もしない
+            if (vnf.getIDVector().get(1).equals(new Long(vnfnum))) {
+                continue;
+            }
+
+            //START VNF以外＋自分より若いIDのVNF以外を，後続VNF候補とする．
+            TreeSet<Long> remainSet =
+                    //this.getCandidateTaskIDSetFromApl(task, true);
+                    this.autogetCandidateTaskFromOldOnly(sfc, vnf, true);
+
+            //データ依存辺の出力辺数を決める．正規分布とする．
+            long ddoutnum = NFVUtil.genLong2(NFVUtil.sfc_vnf_outdegree_min, NFVUtil.sfc_vnf_outdegree_max, 1, 0.5);
+            int dsucidx;
+            int dsize = remainSet.size();
+            Long dsucID = new Long(0);
+            Long[] dcandidates = remainSet.toArray(new Long[0]);
+            // Long[] dcandidates = this.dQueue.toArray(new Long[0]);
+            int inverval = (vnfnum / depth);
+
+            SortedSet<Long> tmpSet = null;
+            for (int j = 0; j < ddoutnum; j++) {
+                if (dsize > 0) {
+                    if (j == 0) {
+                        long tmpnextID = vnf.getIDVector().get(1) + inverval;
+                        dsucID = Math.min(vnfnum, tmpnextID);
+                    } else {
+                        if (tmpStartSet.isEmpty()) {
+
+                            //全タスクが規定の深さまで行っていれば，通常通りランダム操作にうつる．
+                            dsucidx = NFVUtil.genInt(0, dsize - 1);
+                            dsucID = dcandidates[dsucidx];
+
+                        } else {
+                            tmpSet = tmpStartSet.getObjSet().tailSet(vnf.getIDVector().get(1));
+                            tmpSet.remove(vnf.getIDVector().get(1));
+                            if (tmpSet.isEmpty()) {
+                                dsucidx = NFVUtil.genInt(0, dsize - 1);
+                                dsucID = dcandidates[dsucidx];
+                            } else {
+                                dsucID = tmpSet.first();
+                                tmpStartSet.remove(dsucID);
+                            }
+
+                        }
+                    }
+
+                } else {
+                    break;
+                }
+
+                VNF dsucTask = sfc.findVNFByLastID(dsucID);
+                DataDependence dd = new DataDependence(vnf.getIDVector(), dsucTask.getIDVector(), 0, 0, 0);
+                // long datasize = 0;
+                long tmp = 0;
+               /* if(j == 0){
+                    datasize = this.generateLongValueForSize2(this.ddedge_sizemin, this.ddedge_sizemax);
+                    tmp = datasize;
+                }else{
+                    datasize =tmp;
+                }*/
+                //データサイズの決定
+                long datasize = NFVUtil.genLong2(NFVUtil.vnf_datasize_min,
+                        NFVUtil.vnf_datasize_max, NFVUtil.dist_vnf_datasize, NFVUtil.dist_vnf_datasize_mu);
+
+                dd.setMaxDataSize(datasize);
+                dd.setAveDataSize(datasize);
+                dd.setMinDataSize(datasize);
+                remainSet.remove(dsucID);
+                int maxDepth = 0;
+                //当該タスクに，後続タスクをセット
+                if (vnf.addDsuc(dd)) {
+                    if (sfc.getMaxData() <= dd.getMaxDataSize()) {
+                        sfc.setMaxData(dd.getMaxDataSize());
+                    }
+                    if (sfc.getMinData() >= dd.getMaxDataSize()) {
+                        sfc.setMinData(dd.getMaxDataSize());
+                    }
+                    //後続タスクに，先行タスクをセット
+                    dsucTask.addDpred(dd);
+                    //dsucのdepthを更新
+                    Iterator<DataDependence> dpredIte = dsucTask.getDpredList().iterator();
+                    while (dpredIte.hasNext()) {
+                        VNF preTask = sfc.findVNFByLastID(dpredIte.next().getFromID().get(1));
+                        int d = preTask.getDepth();
+                        if (d >= maxDepth) {
+                            maxDepth = d;
+                        }
+                    }
+                    dsucTask.setDepth(maxDepth + 1);
+                    //this.dQueue.add(dsucTask);
+                }
+            }
+            //クラスタを生成しておく．
+            //VNFクラスタも作っておく．
+            CustomIDSet vnfSet = new CustomIDSet();
+            vnfSet.add(vnf.getIDVector().get(1));
+
+            VNFCluster cluster = new VNFCluster(new Long(i + 1), null, vnfSet, vnf.getWorkLoad());
+            vnf.setClusterID(cluster.getClusterID());
+            //cluster.configureVNFCluster();
+
+
+
+            sfc.getVNFClusterMap().put(cluster.getClusterID(), cluster);
+            if (vnf.getDpredList().isEmpty()) {
+                sfc.getStartVNFSet().add(vnf.getIDVector().get(1));
+
+            }
+
+            if (vnf.getDsucList().isEmpty()) {
+                sfc.getEndVNFSet().add(vnf.getIDVector().get(1));
+            }
+
+
+        }
+        VNF endTask = sfc.findVNFByLastID(new Long(vnfnum));
+        CustomIDSet ansSet = new CustomIDSet();
+
+        CustomIDSet vSet = new CustomIDSet();
+        vSet.add(endTask.getIDVector().get(1));
+        VNFCluster endCluster = new VNFCluster(new Long(endTask.getIDVector().get(1)), null, vSet, endTask.getWorkLoad());
+        endCluster.setClusterSize(endTask.getWorkLoad());
+        sfc.getVNFClusterMap().put(endCluster.getClusterID(), endCluster);
+
+
+        ansSet.add(endTask.getIDVector().get(1));
+        LinkedList<DataDependence> dpredList = endTask.getDpredList();
+        Iterator<DataDependence> dpredIte = dpredList.iterator();
+        while (dpredIte.hasNext()) {
+            DataDependence dd = dpredIte.next();
+            VNF dpredTask = sfc.findVNFByLastID(dd.getFromID().get(1));
+            this.autoupdateAncestor(sfc, ansSet, dpredTask);
+        }
+        //全体のPGの命令数を集計する．
+        //VNF task = (BBTask)AplOperator.getInstance().calculateInstructions(AplOperator.getInstance().getApl());
+
+
+        return sfc;
+
     }
 
 
@@ -547,6 +828,7 @@ public class SFCGenerator {
 
         }
         VNF endTask = sfc.findVNFByLastID(new Long(vnfnum));
+        endTask.setClusterID(endTask.getIDVector().get(1));
         CustomIDSet ansSet = new CustomIDSet();
 
         CustomIDSet vSet = new CustomIDSet();
@@ -792,6 +1074,38 @@ public class SFCGenerator {
         return allSet;
 
     }
+
+    public CustomIDSet autoupdateAncestor(SFC sfc, CustomIDSet allSet, VNF task) {
+        //すでに自分がチェック済みであればそのままリターン
+        if (allSet.contains(task.getIDVector().get(1))) {
+            return allSet;
+        }
+
+        //以降はまだチェック済みでない場合の処理
+        //先行タスクの先祖たちをかき集めてからallSetへ自分を追加し，リターン
+
+        LinkedList<DataDependence> dpredList = task.getDpredList();
+        Iterator<DataDependence> dpredIte = dpredList.iterator();
+
+        while (dpredIte.hasNext()) {
+            DataDependence dd = dpredIte.next();
+            VNF dpredTask = sfc.findVNFByLastID(dd.getFromID().get(1));
+            //まずは先行タスクのIDを先祖に追加する．
+            task.getAncestorIDList().add(dpredTask.getIDVector().get(1));
+            //再帰CALL
+            this.autoupdateAncestor(sfc, allSet, dpredTask);
+            HashSet<Long> newSet = dpredTask.getAncestorIDList();
+            task.getAncestorIDList().addAll(newSet);
+
+        }
+
+        //allSetへ自分を追加する．
+        allSet.add(task.getIDVector().get(1));
+
+        return allSet;
+
+    }
+
 
 
     public CustomIDSet updateAncestor(CustomIDSet allSet, VNF task) {
