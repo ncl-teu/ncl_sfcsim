@@ -637,6 +637,7 @@ public class SFCGenerator {
 
         }
         VNF endTask = sfc.findVNFByLastID(new Long(vnfnum));
+        endTask.setClusterID(endTask.getIDVector().get(1));
         CustomIDSet ansSet = new CustomIDSet();
 
         CustomIDSet vSet = new CustomIDSet();
