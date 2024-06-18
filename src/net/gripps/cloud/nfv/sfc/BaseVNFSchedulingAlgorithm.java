@@ -395,6 +395,8 @@ public class BaseVNFSchedulingAlgorithm {
             return this.calcImageComTime(vnf.getImageSize(), vcpu);
         }
     }
+
+
     public double calcDownloadImageTimeBest(VNF vnf, VCPU vcpu) {
         //System.out.println(vnf.getType()+"AAA"+vnf.getImageSize());
         VM vm = this.findVM(vcpu);
