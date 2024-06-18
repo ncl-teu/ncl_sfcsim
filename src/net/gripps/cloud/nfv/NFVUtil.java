@@ -1,9 +1,12 @@
 package net.gripps.cloud.nfv;
 
 import net.gripps.cloud.CloudUtil;
+import net.gripps.cloud.core.VCPU;
 import org.apache.commons.math.random.RandomDataImpl;
 
 import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Properties;
 
 /**
@@ -16,7 +19,7 @@ public class NFVUtil extends CloudUtil {
 
     public static int VNF_TYPE_VSTART = 111;
 
-    public static int VNF_TYPE_VEND =  999;
+    public static int VNF_TYPE_VEND = 999;
 
     public static int dist_vnf_weight;
     public static double dist_vnf_weight_mu;
@@ -27,8 +30,8 @@ public class NFVUtil extends CloudUtil {
     public static double dist_vnf_datasize_mu;
 
     public static long sfc_vnf_num;
- //   public static int sfc_vnf_indegree_min;
- ///   public static int sfc_vnf_indegree_max;
+    //   public static int sfc_vnf_indegree_min;
+    ///   public static int sfc_vnf_indegree_max;
     public static int sfc_vnf_outdegree_min;
     public static int sfc_vnf_outdegree_max;
 
@@ -82,15 +85,38 @@ public class NFVUtil extends CloudUtil {
     public static int cloud_container_dl_mode;
 
 
-   // public static double nfv_fairness_weight_rt;
+    // public static double nfv_fairness_weight_rt;
+
+
+    public static HashMap<Integer, ArrayList<VCPU>> vnf_image_dict;
+
+    public static HashMap<Integer, ArrayList<VCPU>> getImageDict() {
+        return vnf_image_dict;
+    }
+
+    public static ArrayList<VCPU> getImageDictByImageType(int vnfType) {
+        ArrayList<VCPU> vcpuList = vnf_image_dict.get(vnfType);
+        return vcpuList;
+    }
+
+    public static void setImageDict(int vnfType, VCPU vcpu) {
+        ArrayList<VCPU> vcpuList = vnf_image_dict.get(vnfType);
+        if (vcpuList == null) {
+            vcpuList = new ArrayList<VCPU>();
+            vcpuList.add(vcpu);
+            vnf_image_dict.put(vnfType, vcpuList);
+        } else {
+            vcpuList.add(vcpu);
+        }
+    }
 
 
     public static NFVUtil own;
 
-    public static NFVUtil getIns(){
-        if(NFVUtil.own == null){
+    public static NFVUtil getIns() {
+        if (NFVUtil.own == null) {
             NFVUtil.own = new NFVUtil();
-        }else{
+        } else {
 
         }
 
@@ -100,48 +126,49 @@ public class NFVUtil extends CloudUtil {
     /**
      * デフォルトコンストラクタ
      */
-    private NFVUtil(){
+    private NFVUtil() {
         NFVUtil.rDataGen = new RandomDataImpl();
 
     }
 
     @Override
     public void initialize(String propName) {
-        try{
+        try {
+            NFVUtil.vnf_image_dict = new HashMap<>();
             //設定情報
             NFVUtil.prop = new Properties();
             NFVUtil.prop.load(new FileInputStream(propName));
-            NFVUtil.vnf_weight_min = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_min"));
-            NFVUtil.vnf_weight_max = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_max"));
-            NFVUtil.dist_vnf_weight = Integer.valueOf( CloudUtil.prop.getProperty("dist_vnf_weight"));
-            NFVUtil.dist_vnf_weight_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_vnf_weight_mu"));
-            NFVUtil.vnf_datasize_min = Long.valueOf( CloudUtil.prop.getProperty("vnf_datasize_min"));
-            NFVUtil.vnf_datasize_max = Long.valueOf( CloudUtil.prop.getProperty("vnf_datasize_max"));
-            NFVUtil.dist_vnf_datasize = Integer.valueOf( CloudUtil.prop.getProperty("dist_vnf_datasize"));
-            NFVUtil.dist_vnf_datasize_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_vnf_datasize_mu"));
-            NFVUtil.sfc_vnf_num = Long.valueOf( CloudUtil.prop.getProperty("sfc_vnf_num"));
-           // NFVUtil.sfc_vnf_indegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_min"));
-           // NFVUtil.sfc_vnf_indegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_max"));
-            NFVUtil.sfc_vnf_outdegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_outdegree_min"));
-            NFVUtil.sfc_vnf_outdegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_outdegree_max"));
-            NFVUtil.multiple_sfc_num = Integer.valueOf( CloudUtil.prop.getProperty("multiple_sfc_num"));
-            NFVUtil.multiple_sfc_vnf_num_min = Long.valueOf( CloudUtil.prop.getProperty("multiple_sfc_vnf_num_min"));
-            NFVUtil.multiple_sfc_vnf_num_max = Long.valueOf( CloudUtil.prop.getProperty("multiple_sfc_vnf_num_max"));
-            NFVUtil.dist_multiple_sfc_vnf_num = Integer.valueOf( CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num"));
-            NFVUtil.dist_multiple_sfc_vnf_num_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num_mu"));
+            NFVUtil.vnf_weight_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_min"));
+            NFVUtil.vnf_weight_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_max"));
+            NFVUtil.dist_vnf_weight = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight"));
+            NFVUtil.dist_vnf_weight_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight_mu"));
+            NFVUtil.vnf_datasize_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_min"));
+            NFVUtil.vnf_datasize_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_max"));
+            NFVUtil.dist_vnf_datasize = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize"));
+            NFVUtil.dist_vnf_datasize_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize_mu"));
+            NFVUtil.sfc_vnf_num = Long.valueOf(CloudUtil.prop.getProperty("sfc_vnf_num"));
+            // NFVUtil.sfc_vnf_indegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_min"));
+            // NFVUtil.sfc_vnf_indegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_max"));
+            NFVUtil.sfc_vnf_outdegree_min = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_min"));
+            NFVUtil.sfc_vnf_outdegree_max = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_max"));
+            NFVUtil.multiple_sfc_num = Integer.valueOf(CloudUtil.prop.getProperty("multiple_sfc_num"));
+            NFVUtil.multiple_sfc_vnf_num_min = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_min"));
+            NFVUtil.multiple_sfc_vnf_num_max = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_max"));
+            NFVUtil.dist_multiple_sfc_vnf_num = Integer.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num"));
+            NFVUtil.dist_multiple_sfc_vnf_num_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num_mu"));
             NFVUtil.startNumRate = Double.valueOf(prop.getProperty("sfc_vnf_startnumrate")).doubleValue();
-            NFVUtil.depth_alpha =Integer.valueOf(prop.getProperty("sfc_vnf_deapthalpha")).intValue();
+            NFVUtil.depth_alpha = Integer.valueOf(prop.getProperty("sfc_vnf_deapthalpha")).intValue();
             NFVUtil.calcmode_level = Integer.valueOf(prop.getProperty("calcmode_level")).intValue();
-            NFVUtil.nfv_fairness_weight_overlap =  Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_overlap"));
-           // NFVUtil.nfv_fairness_weight_rt = Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_rt"));
+            NFVUtil.nfv_fairness_weight_overlap = Double.valueOf(CloudUtil.prop.getProperty("nfv_fairness_weight_overlap"));
+            // NFVUtil.nfv_fairness_weight_rt = Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_rt"));
 
             NFVUtil.core_max_usage = Integer.valueOf(prop.getProperty("core_max_usage")).intValue();
-            NFVUtil.cloud_constrained_mode =  Integer.valueOf(prop.getProperty("cloud_constrained_mode")).intValue();
+            NFVUtil.cloud_constrained_mode = Integer.valueOf(prop.getProperty("cloud_constrained_mode")).intValue();
 
-            NFVUtil.vnf_usage_min =  Integer.valueOf(prop.getProperty("vnf_usage_min")).intValue();
+            NFVUtil.vnf_usage_min = Integer.valueOf(prop.getProperty("vnf_usage_min")).intValue();
             NFVUtil.vnf_usage_max = Integer.valueOf(prop.getProperty("vnf_usage_max")).intValue();
 
-            NFVUtil.dist_vnf_usage =  Integer.valueOf(prop.getProperty("dist_vnf_usage")).intValue();
+            NFVUtil.dist_vnf_usage = Integer.valueOf(prop.getProperty("dist_vnf_usage")).intValue();
             NFVUtil.dist_vnf_usage_mu = Double.valueOf(prop.getProperty("dist_vnf_usage_mu")).doubleValue();
             NFVUtil.cmwsl_sched_area = Integer.valueOf(prop.getProperty("cmwsl_sched_area")).intValue();
             NFVUtil.vnf_type_max = Integer.valueOf(prop.getProperty("vnf_type_max")).intValue();
@@ -154,7 +181,7 @@ public class NFVUtil extends CloudUtil {
 
             NFVUtil.cloud_container_dl_mode = Integer.valueOf(prop.getProperty("cloud_container_dl_mode")).intValue();
 
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

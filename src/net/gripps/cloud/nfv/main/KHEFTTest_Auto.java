@@ -137,6 +137,7 @@ public class KHEFTTest_Auto {
         int roop = 100;
         //何回実行した平均を取るか
 
+
         List<Double>  SLR_HEFT= new ArrayList();
         List<Integer>  vCPUs_HEFT= new ArrayList();
         List<Integer>  Hosts_HEFT= new ArrayList();

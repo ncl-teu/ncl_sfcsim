@@ -212,6 +212,7 @@ public class SFCGenerator {
                     }else{
                         this.typMap.put(typeID, imageSize);
                     }
+                    //System.out.println(vnf.getType()+"AAA"+typeID+"AAA"+imageSize);
                     //乱数で決めたimageSizeをvnfにセットする
                     vnf.setImageSize(imageSize);
 
