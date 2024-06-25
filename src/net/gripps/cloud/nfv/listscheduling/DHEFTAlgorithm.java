@@ -10,14 +10,17 @@ import net.gripps.cloud.nfv.sfc.VNF;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class DHEFTAlgorithm extends HEFT_VNFAlgorithm{
+public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     public DHEFTAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
+        setName("DHeft");
     }
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        //edit by SUN.
+        //System.out.println(getName() + " schedule.");
         //super.scheduleVNF(vnf, map);
 
         //
@@ -31,21 +34,27 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm{
             VCPU cpu = cpuIte.next();
             //ESTを計算する．
             double est = this.calcEST(vnf, cpu);
-            double dTime = this.calcDownloadImageTime(vnf,cpu);
-            if(dTime == -1){
+            double dTime = this.calcDownloadImageTime(vnf, cpu);
+            if (dTime == -1) {
                 continue;
             }
-           // System.out.println("time:"+dTime);
+            // System.out.println("time:"+dTime);
             //完了時刻を計算する．
+
+            //I think bug. edit by SUN.
+            //est already include the download duretion. dTime.
             double ftime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
+
             //VNFの完了時刻を最小にするVCPUを探す．
-            if (ftime <= ret_finishtime) {
+            //edit by SUN <= to <
+            if (ftime < ret_finishtime) {
+                //System.out.println(ftime + "<" + ret_finishtime);
                 ret_finishtime = ftime;
-                ret_starttime = est;
+                ret_starttime = est + dTime;
                 retCPU = cpu;
             }
         }
-
+        //System.out.println("setFinishTime" + ret_finishtime);
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
         vnf.setFinishTime(ret_finishtime);
@@ -80,8 +89,6 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm{
     }
 
 }
-
-
 
 
 //

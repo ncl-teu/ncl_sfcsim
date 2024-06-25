@@ -5,17 +5,19 @@ import net.gripps.cloud.core.CloudEnvironment;
 import net.gripps.cloud.core.ComputeHost;
 import net.gripps.cloud.core.VCPU;
 import net.gripps.cloud.nfv.NFVUtil;
-import net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.concurrent.TimeUnit;
+
 
 public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
     public KHEFTAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
+        setName("KHEFT");
     }
 
     @Override
@@ -29,38 +31,33 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
             VCPU cpu = cpuIte.next();
             //ESTを計算する
             double est = this.calcEST(vnf, cpu);
-            //完了時刻を計算する
-            double fTime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
-            //VNFの完了時刻を最小にするVCPUを探す
-            //找到使 VNF 完成时间最小化的 VCPU
-            if (fTime <= ret_finishtime) {
-                ret_finishtime = fTime;
-                ret_starttime = est;
-                retCPU = cpu;
-            }
 
             //DockerイメージのDLが必要かを判別する
-            //判断是否需要Docker镜像DL
             double dTime = this.calcDownloadImageTime(vnf, cpu);
             if (dTime == -1) {
                 continue;
             }
             //イメージのDL完了時刻:DLInfoから取得
-            //图像DL完成时间：从DLInfo获得
             double dCompTime = this.getDLInfo(vnf, cpu).get("finish");
             //DL完了時刻がタスクの実行開始時刻に間に合うか判別
             //間に合う:DLを割り当て
             //間に合わない:DHEFTAlgorithmを使う
-            //判断DL完成时间是否赶上任务执行开始时间
-            //准时：分配DL
-            //无法及时完成：使用 DHEFTAlgorithm
+
             if (dCompTime <= est) {
-                continue;
+                //continue;
+                //完了時刻を計算する
+                double fTime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
+                if (fTime <= ret_finishtime) {
+                    ret_finishtime = fTime;
+                    ret_starttime = est;
+                    retCPU = cpu;
+                }
             } else if (dCompTime > est) {
-                double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
+                //double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
+                double DHEFT_fTime = dCompTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 if (DHEFT_fTime <= ret_finishtime) {
                     ret_finishtime = DHEFT_fTime;
-                    ret_starttime = est;
+                    ret_starttime = dCompTime;
                     retCPU = cpu;
                 }
             }
@@ -70,6 +67,8 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
         LinkedList<VNF> dlQueue = retCPU.getDlQueue();
         dlQueue.add(vnf);
         retCPU.setDlQueue(dlQueue);
+
+        //System.out.println(ret_starttime + "|" + ret_finishtime + "|" + ret_starttime + "|" + retCPU.getPrefix().toString());
 
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);

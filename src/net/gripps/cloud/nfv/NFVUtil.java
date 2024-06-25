@@ -8,6 +8,8 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.Set;
+import java.util.List;
 
 /**
  * Created by Hidehiro Kanemitsu on 2018/11/26.
@@ -87,6 +89,37 @@ public class NFVUtil extends CloudUtil {
 
     // public static double nfv_fairness_weight_rt;
 
+    //key:type v:cpu id set
+    public static HashMap<Integer, Set<VCPU>> vnfTypeMap;
+
+    public static HashMap<Integer, Set<VCPU>> getVnfTypeMap() {
+        return vnfTypeMap;
+    }
+
+    public static void setVnfTypeMap(int k, Set<VCPU> v) {
+        vnfTypeMap.put(k, v);
+    }
+
+
+    public static HashMap<Integer, ArrayList<ArrayList<Long>>> vnfTypeKV;
+
+    public static HashMap<Integer, ArrayList<ArrayList<Long>>> getVnfTypeKV() {
+        return vnfTypeKV;
+    }
+
+    public static void setVnfTypeKV(Integer i, ArrayList<Long> kv) {
+        HashMap<Integer, ArrayList<ArrayList<Long>>> kvMap = getVnfTypeKV();
+        ArrayList<ArrayList<Long>> kvList = kvMap.get(i);
+        if (kvList == null) {
+            kvList = new ArrayList<>();
+            kvList.add(kv);
+            kvMap.put(i, kvList);
+        } else {
+            kvList.add(kv);
+            kvMap.put(i, kvList);
+        }
+    }
+
 
     public static HashMap<Integer, ArrayList<VCPU>> vnf_image_dict;
 
@@ -106,7 +139,12 @@ public class NFVUtil extends CloudUtil {
             vcpuList.add(vcpu);
             vnf_image_dict.put(vnfType, vcpuList);
         } else {
-            vcpuList.add(vcpu);
+            if (vcpuList.contains(vcpu)) {
+
+            } else {
+                vcpuList.add(vcpu);
+                vnf_image_dict.put(vnfType, vcpuList);
+            }
         }
     }
 
@@ -135,6 +173,7 @@ public class NFVUtil extends CloudUtil {
     public void initialize(String propName) {
         try {
             NFVUtil.vnf_image_dict = new HashMap<>();
+            NFVUtil.vnfTypeKV = new HashMap<>();
             //設定情報
             NFVUtil.prop = new Properties();
             NFVUtil.prop.load(new FileInputStream(propName));

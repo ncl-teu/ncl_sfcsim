@@ -15,7 +15,7 @@ import java.util.Vector;
  * VNF(Virtualized Network Function)を表すクラスです．
  * Created by Hidehiro Kanemitsu  on 2018/11/02.
  */
-public class VNF  implements Serializable{
+public class VNF implements Serializable {
 
 
     private Vector<Long> IDVector;
@@ -23,13 +23,13 @@ public class VNF  implements Serializable{
      * このVNFを処理するのに必要な最低のMIPS
      * 未実装．
      */
-    protected long  requiredMips;
+    protected long requiredMips;
 
     /**
      * このVNFが割り当てられているVMが受信すべき最低限のBW
      * 未実装
      */
-    protected long  requiredRecvBW;
+    protected long requiredRecvBW;
 
     /**
      * このVNFが割り当てられているVMが送信すべき最低限のBW
@@ -100,7 +100,6 @@ public class VNF  implements Serializable{
 
     /**
      * EST (Earliest Start Time)
-     *
      */
     protected double EST;
 
@@ -139,7 +138,7 @@ public class VNF  implements Serializable{
      * このVNFをvCPUへ割り当てることによる，使用率の増分．
      * %単位．
      */
-    protected int  usage;
+    protected int usage;
 
     /**
      * このVNFを所属するクラスタID
@@ -172,27 +171,30 @@ public class VNF  implements Serializable{
 
     protected double dlFinishTime;
 
+    protected String tempName;
+
+    public void setTempName(String name){
+        this.tempName = name;
+    }
+    public String getTempName(){
+        return this.tempName;
+    }
 
 
 
-
-
-
-
-    public VNF(int in_type, long weight, long requiredMips, long requiredRecvBW, long  requiredSendBW, String  vCPUID, int percent) {
+    public VNF(int in_type, long weight, long requiredMips, long requiredRecvBW, long requiredSendBW, String vCPUID, int percent) {
         //super(in_type, in_maxweight, in_aveweight, in_minweight);
         this.requiredMips = requiredMips;
         /*
         if((in_type != NFVUtil.VNF_TYPE_VEND)&&(in_type != NFVUtil.VNF_TYPE_VSTART)){
             this.type = NFVUtil.genInt2(1, NFVUtil.vnf_type_max, 1, 0.5);
         }*/
-        if(in_type >= 1){
+        if (in_type >= 1) {
             this.type = in_type;
 
-        }else{
+        } else {
             this.type = NFVUtil.genInt2(1, NFVUtil.vnf_type_max, 1, 0.5);
         }
-
 
 
         this.workLoad = weight;
@@ -215,7 +217,7 @@ public class VNF  implements Serializable{
         this.blevel = -1;
         this.dominantPredID = new Long(-1);
         this.dominantSucID = new Long(-1);
-        this.usage = percent ;
+        this.usage = percent;
         this.clusterID = -1L;
         this.isAssignedInCloud = false;
         this.priority = -1d;
@@ -246,7 +248,7 @@ public class VNF  implements Serializable{
         return dominantPredID;
     }
 
-    public int  getUsage() {
+    public int getUsage() {
         return usage;
     }
 
@@ -258,7 +260,7 @@ public class VNF  implements Serializable{
         this.clusterID = clusterID;
     }
 
-    public void setUsage(int  usage) {
+    public void setUsage(int usage) {
         this.usage = usage;
     }
 
@@ -338,11 +340,11 @@ public class VNF  implements Serializable{
         this.requiredSendBW = requiredSendBW;
     }
 
-    public String  getvCPUID() {
+    public String getvCPUID() {
         return vCPUID;
     }
 
-    public void setvCPUID(String  vCPUID) {
+    public void setvCPUID(String vCPUID) {
         this.vCPUID = vCPUID;
     }
 
@@ -376,12 +378,12 @@ public class VNF  implements Serializable{
      */
     public boolean addDsuc(DataDependence dd) {
         Vector<Long> in_fromID = dd.getFromID();
-        long fid =  in_fromID.get(1);
+        long fid = in_fromID.get(1);
 
         Vector<Long> in_toID = dd.getToID();
         long tid = in_toID.get(1);
 
-        if(fid == tid){
+        if (fid == tid) {
             return false;
         }
         int size = this.dsucList.size();
@@ -395,17 +397,17 @@ public class VNF  implements Serializable{
             long tmp_tid = tmp_toID.get(1);
 
             //同じIDであれば追加せず，falseを返す．
-            if ((fid == tmp_fid) &&(tid == tmp_tid)) {
+            if ((fid == tmp_fid) && (tid == tmp_tid)) {
                 return false;
             }
         }
 
 
-        if(this.maxData <= dd.getMaxDataSize()){
+        if (this.maxData <= dd.getMaxDataSize()) {
             this.maxData = dd.getMaxDataSize();
         }
 
-        if(this.minData>=dd.getMaxDataSize()){
+        if (this.minData >= dd.getMaxDataSize()) {
             this.minData = dd.getMaxDataSize();
         }
         this.dsucList.add(dd);
@@ -420,7 +422,7 @@ public class VNF  implements Serializable{
         Vector<Long> in_toID = dd.getToID();
         long tid = in_toID.get(1);
 
-        if(fid == tid){
+        if (fid == tid) {
             return false;
         }
 
@@ -435,17 +437,17 @@ public class VNF  implements Serializable{
             long tmp_tid = tmp_toID.get(1);
 
             //同じIDであれば追加せず，falseを返す．
-            if ((fid == tmp_fid)&&(tid == tmp_tid)) {
+            if ((fid == tmp_fid) && (tid == tmp_tid)) {
                 /*if(AplOperator.getInstance().isIDEqual(tmp_fromID,in_fromID)){ */
                 return false;
             }
         }
 
-        if(this.maxData <= dd.getMaxDataSize()){
+        if (this.maxData <= dd.getMaxDataSize()) {
             this.maxData = dd.getMaxDataSize();
         }
 
-        if(this.minData>=dd.getMaxDataSize()){
+        if (this.minData >= dd.getMaxDataSize()) {
             this.minData = dd.getMaxDataSize();
         }
 
@@ -463,7 +465,7 @@ public class VNF  implements Serializable{
         Iterator<DataDependence> ite = this.dpredList.iterator();
         //DpredListのリスト内チェックループ
         //for (int i = 0; i < size; i++) {
-        while(ite.hasNext()){
+        while (ite.hasNext()) {
             // DataDependence tmp_dd = this.dpredList.get(i);
             DataDependence tmp_dd = ite.next();
             //同じIDが見つかれば，それを取得する
@@ -480,7 +482,7 @@ public class VNF  implements Serializable{
         Iterator<DataDependence> ite = this.dsucList.iterator();
         //DpredListのリスト内チェックループ
         //for (int i = 0; i < size; i++) {
-        while(ite.hasNext()){
+        while (ite.hasNext()) {
             // DataDependence tmp_dd = this.dpredList.get(i);
             DataDependence tmp_dd = ite.next();
             //同じIDが見つかれば，それを取得する
@@ -492,12 +494,12 @@ public class VNF  implements Serializable{
         return null;
     }
 
-    public boolean isDpredAllChecked(){
+    public boolean isDpredAllChecked() {
         Iterator<DataDependence> dpredIte = this.dpredList.iterator();
         boolean ret = true;
-        while(dpredIte.hasNext()){
+        while (dpredIte.hasNext()) {
             DataDependence dpred = dpredIte.next();
-            if(!dpred.getIsChecked()){
+            if (!dpred.getIsChecked()) {
                 ret = false;
                 break;
             }
@@ -611,7 +613,11 @@ public class VNF  implements Serializable{
     }
 
     //
-    public long getImageSize() { return imageSize; }
+    public long getImageSize() {
+        return imageSize;
+    }
 
-    public void setImageSize(long imageSize) { this.imageSize = imageSize; }
+    public void setImageSize(long imageSize) {
+        this.imageSize = imageSize;
+    }
 }

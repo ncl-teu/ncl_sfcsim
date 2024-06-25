@@ -120,6 +120,17 @@ public class BaseVNFSchedulingAlgorithm {
      */
     protected long totalFunctionInstanceNum;
 
+    //edit by SUN.
+    protected String name;
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
 
     public BaseVNFSchedulingAlgorithm(CloudEnvironment env, SFC sfc) {
         this.makeSpan = -1;
@@ -340,7 +351,7 @@ public class BaseVNFSchedulingAlgorithm {
             //完了時刻を計算する．
             double ftime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
             //VNFの完了時刻を最小にするVCPUを探す．
-            if (ftime <= ret_finishtime) {
+            if (ftime < ret_finishtime) {
                 ret_finishtime = ftime;
                 ret_starttime = est;
                 retCPU = cpu;
@@ -384,45 +395,175 @@ public class BaseVNFSchedulingAlgorithm {
 
 
     public double calcDownloadImageTime(VNF vnf, VCPU vcpu) {
-        //System.out.println(vnf.getType()+"AAA"+vnf.getImageSize());
         VM vm = this.findVM(vcpu);
+
         if (vm == null) {
             return -1;
         }
         if (vm.containsType(vnf.getType())) {
             return 0.0d;
         } else {
-            return this.calcImageComTime(vnf.getImageSize(), vcpu);
+            //System.out.println(vnf.getTempName());
+            if (vnf.getTempName() == "KHEFTPLUS") {
+                return this.calcImageComTimePLUS(vnf, vcpu);
+            } else if (vnf.getTempName() == "KHEFTBEST") {
+                return this.calcImageComTimePLUS(vnf, vcpu);
+            } else if (vnf.getTempName() == "KHEFTPRO") {
+                return this.calcImageComTimePRO(vnf, vcpu);
+                //return 0.0d;
+            } else {
+                return this.calcImageComTime(vnf, vcpu);
+            }
+
         }
     }
 
+    public double calcImageComTimeBTcpu(VCPU vcpu1, VCPU vcpu2, VNF vnf) {
+        long dataSize = vnf.getImageSize();
+        //DCの情報@vcpu側
+        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu1.getPrefix());
+        Long toDCID = CloudUtil.getInstance().getDCID(vcpu2.getPrefix());
 
-    public double calcDownloadImageTimeBest(VNF vnf, VCPU vcpu) {
-        //System.out.println(vnf.getType()+"AAA"+vnf.getImageSize());
-        VM vm = this.findVM(vcpu);
-        if (vm == null) {
-            return -1;
-        }
 
-        return 0.0d;
-        //if (vm.containsType(vnf.getType())) {
-        //    return 0.0d;
-        //} else {
-        //    return this.calcImageComTime(vnf.getImageSize(), vcpu);
-        //}
-    }
-
-    public double calcDownloadImageTimePlus(VNF vnf, VCPU vcpu) {
-        //System.out.println(vnf.getType()+"AAA"+vnf.getImageSize());
-        VM vm = this.findVM(vcpu);
-        if (vm == null) {
-            return -1;
-        }
-        int vnfType = vnf.getType();
-        if (vm.containsType(vnfType)) {
-            return 0.0d;
+        //Long toDCID = CloudUtil.getInstance().getDCID(toVCPU.getPrefix());
+        long dcBW = NFVUtil.MAXValue;
+        Cloud fromCloud = env.getDcMap().get(fromDCID);
+        Cloud toCloud = env.getDcMap().get(toDCID);
+        boolean isSameDC = false;
+        //同一クラウド内であれば，DC間の通信は考慮しなくて良い．
+        //如果是在同一个云内，则不需要考虑DC之间的通信。
+        if (fromDCID.longValue() == toDCID.longValue()) {
+            isSameDC = true;
         } else {
-            return this.calcImageComTimePlus(vnfType, vnf.getImageSize(), vcpu);
+            //DCが異なれば，DC間の通信も考慮スべき．
+            //如果DC不同，还应该考虑DC之间的通信。
+            dcBW = Math.min(fromCloud.getBw(), toCloud.getBw());
+
+        }
+        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu1.getPrefix());
+        Long toHostID = CloudUtil.getInstance().getHostID(vcpu2.getPrefix());
+
+
+        //後は，ホスト間での通信
+        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
+        ComputeHost toHost = fromCloud.getComputeHostMap().get(toHostID);
+        long hostBW = NFVUtil.MAXValue;
+        if (isSameDC) {
+            if (fromHost.getMachineID() == toHost.getMachineID()) {
+                //同一ホストなら，0を返す．
+                return 0;
+            } else {
+                hostBW = Math.min(fromHost.getBw(), toHost.getBw());
+
+            }
+        } else {
+
+            try {
+                hostBW = Math.min(fromHost.getBw(), toHost.getBw());
+            } catch (Exception e) {
+                //System.out.println(fromHost);
+                //System.out.println(toHostID);
+                //System.exit(999);
+                hostBW = fromHost.getBw();
+            }
+
+
+        }
+
+
+        long realBW = Math.min(dcBW, hostBW);
+
+        double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
+
+        return time;
+    }
+    public void execDownloadPRO(VNF vnf, VCPU vcpu) {
+        int vnfType = vnf.getType();
+
+        NFVUtil.setImageDict(vnfType, vcpu);
+    }
+    public double calcImageComTimePRO(VNF vnf, VCPU vcpu) {
+        int vnfType = vnf.getType();
+        //long dataSize = vnf.getImageSize();
+        double t = 10000000;
+        double new_t = 10000000;
+        HashMap<Integer, ArrayList<VCPU>> vnfTypeMap = NFVUtil.getImageDict();
+
+        if (vnfTypeMap.containsKey(vnfType)) {
+            ArrayList<VCPU> vcpuList = NFVUtil.getImageDictByImageType(vnfType);
+            for (VCPU ALvcpu : vcpuList) {
+                new_t = calcImageComTimeBTcpu(vcpu, ALvcpu, vnf);
+                if (new_t < t) {
+                    t = new_t;
+                }
+            }
+            //NFVUtil.setImageDict(vnfType, vcpu);
+        } else {
+            t = calcImageComTime(vnf, vcpu);
+            //NFVUtil.setImageDict(vnfType, vcpu);
+        }
+        return t;
+    }
+    public void execDownloadPLUS(VNF vnf, VCPU vcpu) {
+        int vnfType = vnf.getType();
+        //k fromDCIDValue
+        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
+        Long fromDCIDValue = fromDCID.longValue();
+
+        //v fromHostMID
+        Cloud fromCloud = env.getDcMap().get(fromDCID);
+        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
+        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
+        Long fromHostMID = fromHost.getMachineID();
+
+        ArrayList<Long> nkv = new ArrayList<>();
+        nkv.add(fromDCIDValue);
+        nkv.add(fromHostMID);
+        NFVUtil.setVnfTypeKV(vnfType, nkv);
+    }
+
+    public double calcImageComTimePLUS(VNF vnf, VCPU vcpu) {
+        int vnfType = vnf.getType();
+        //k fromDCIDValue
+        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
+        Long fromDCIDValue = fromDCID.longValue();
+
+        //v fromHostMID
+        Cloud fromCloud = env.getDcMap().get(fromDCID);
+        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
+        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
+        Long fromHostMID = fromHost.getMachineID();
+
+        ArrayList<Long> nkv = new ArrayList<>();
+        nkv.add(fromDCIDValue);
+        nkv.add(fromHostMID);
+
+        //compare repository
+        NFVEnvironment nEnv = (NFVEnvironment) this.env;
+        Long toDCID = nEnv.getDockerRepository().getDcID();
+        if (fromDCID.longValue() == toDCID.longValue()) {
+            ComputeHost toHost = nEnv.getDockerRepository();
+            if (fromHost.getMachineID() == toHost.getMachineID()) {
+                return 0.0d;
+            }
+        }
+
+        HashMap<Integer, ArrayList<ArrayList<Long>>> vnfTypeKV = NFVUtil.getVnfTypeKV();
+        if (vnfTypeKV.containsKey(vnfType)) {
+            ArrayList<ArrayList<Long>> kvList = vnfTypeKV.get(vnfType);
+            if (kvList.contains(nkv)) {
+                return 0.0d;
+            } else {
+                double ret = calcImageComTime(vnf, vcpu);
+                //试算的时候不能下载
+                NFVUtil.setVnfTypeKV(vnfType, nkv);
+                return ret;
+            }
+        } else {
+            double ret = calcImageComTime(vnf, vcpu);
+            //试算的时候不能下载
+            NFVUtil.setVnfTypeKV(vnfType, nkv);
+            return ret;
         }
     }
 
@@ -443,10 +584,11 @@ public class BaseVNFSchedulingAlgorithm {
      * imageDataをリポジトリからダウンロードするのにかかる時間を計算する。
      * 计算从存储库下载 imageData 所需的时间。
      *
-     * @param dataSize
+     * @param
      * @return
      */
-    public double calcImageComTime(long dataSize, VCPU vcpu) {
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        long dataSize = vnf.getImageSize();
         //DCの情報@vcpu側
         Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
         //DBの情報@リポジトリ
@@ -526,15 +668,15 @@ public class BaseVNFSchedulingAlgorithm {
 
             }
         } else {
-            try{
+            try {
                 hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-            }catch(Exception e){
+            } catch (Exception e) {
                 //System.out.println(e);
                 //System.out.println(fromHost.getBw());
                 //System.out.println(fromHostID);
                 //System.out.println(toHostID);
                 //System.out.println(toHost.getBw());
-                hostBW=fromHost.getBw();
+                hostBW = fromHost.getBw();
             }
 
         }
@@ -544,31 +686,6 @@ public class BaseVNFSchedulingAlgorithm {
 
         double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
         return time;
-    }
-
-    public double calcImageComTimePlus(int vnfType, long dataSize, VCPU vcpu) {
-        double time = calcImageComTime(dataSize, vcpu);
-        double minTime = time;
-        ArrayList<VCPU> vcpuList = NFVUtil.getImageDictByImageType(vnfType);
-        if (vcpuList != null) {
-            //System.out.println(vcpuList.size());
-            Set<Double> timeList = new HashSet<Double>();
-            for (VCPU vc : vcpuList) {
-                //System.out.println(vc);
-                double time2 = compareDL(dataSize, vcpu, vc);
-                //System.out.println(time2);
-                timeList.add(time2);
-                if (time2 == 0.0) {
-                    break;
-                }
-            }
-            minTime = Collections.min(timeList);
-        }
-        System.out.println(time);
-        System.out.println(minTime);
-        time = Math.min(time, minTime);
-        NFVUtil.setImageDict(vnfType, vcpu);
-        return 0;
     }
 
     public long calcTotalFunctionInstanceNum() {
@@ -759,6 +876,8 @@ public class BaseVNFSchedulingAlgorithm {
 
     //dlQueue:imageをDLする順番で並べている
     //dlList:dlQueueから取得したデータを格納する
+    //dlQueue：image按照下载的顺序排列
+    //dlList:data从dlQueue中获取的数据
     //map:
     protected HashMap<String, Double> getDLInfo(VNF vnf, VCPU vcpu) {
         //imageのDL開始時刻と完了時刻 DLに関する情報を得る
@@ -767,18 +886,26 @@ public class BaseVNFSchedulingAlgorithm {
         map.put("start", 0.0d);
         map.put("finish", 0.0d);
 
-
         if (NFVUtil.cloud_container_dl_mode == 1) {
             LinkedList<VNF> dlList = vcpu.getDlQueue();
-            if (dlList.isEmpty()) {
+            //System.out.println("dlList" + dlList);
 
+
+            if (dlList.isEmpty()) {
+                double arrival_time = this.calcDeadLine(vnf, vcpu).get("arrival_time");
+                map.put("start", arrival_time);
+                map.put("finish", this.calcDownloadImageTime(vnf, vcpu) + arrival_time);
             } else {
                 //最後の要素の完了時刻を取得する。
                 VNF lastVNF = dlList.getLast();
+                //System.out.println(lastVNF);
                 double dlFinishTime = lastVNF.getDlFinishTime();
                 map.put("start", dlFinishTime);
                 //当該VNFのimage DL完了時刻を求める。
                 dl_finish_time = dlFinishTime + this.calcDownloadImageTime(vnf, vcpu);
+                //System.out.println("dlFinishTime = " + dlFinishTime);
+                //System.out.println("this.calcDownloadImageTime(vnf, vcpu) = " + this.calcDownloadImageTime(vnf, vcpu));
+                //System.out.println("dl_finish_time = " + dl_finish_time);
                 map.put("finish", dl_finish_time);
             }
 
@@ -844,7 +971,7 @@ public class BaseVNFSchedulingAlgorithm {
         double arrival_time = 0;
         double dl_finish_time = 0;
         //vcpuの、ダウンロード開始時刻と完了時刻を計算する。
-        dl_finish_time = this.getDLInfo(vnf, cpu).get("finish");
+        //dl_finish_time = this.getDLInfo(vnf, cpu).get("finish");
         arrival_time = this.calcDeadLine(vnf, cpu).get("arrival_time");
 
         //arrival_time(DRT) ~ 最後のFinishTimeまでの範囲で，task/cpu速度の時間が埋められる

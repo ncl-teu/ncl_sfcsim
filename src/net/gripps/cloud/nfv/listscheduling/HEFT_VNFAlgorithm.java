@@ -27,14 +27,14 @@ public class HEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         while (idIte.hasNext()) {
             Long id = idIte.next();
             VNF vnf = this.sfc.findVNFByLastID(id);
-            if(vnf.getBlevel() >= maxBlevel){
+            if (vnf.getBlevel() >= maxBlevel) {
                 maxBlevel = vnf.getBlevel();
                 selectedVNF = vnf;
             }
 
         }
         //SFCから，指定IDのVNFを取得する．
-         //selectedVNF = this.sfc.findVNFByLastID(retID);
+        //selectedVNF = this.sfc.findVNFByLastID(retID);
         //VNFをスケジュールする．これは，親クラスであるAbstractFairSchedulingAlgorithmのscheduleVNFメソッド
         //をcallしており，fairnessに基づいて割り当てている．
         //this.scheduleVNF(selectedVNF, this.env.getGlobal_vcpuMap());
@@ -43,14 +43,24 @@ public class HEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
     }
 
     public void mainProcess() {
+        //edit by SUN.
+        System.out.println(getName() + " start.");
+
         //未スケジュールなVNFが残っている間，行うループ
+        int n = 0;
         while (!this.getUnScheduledVNFSet().isEmpty()) {
+
+            //System.out.println("n=" + n);
+            if (n == this.getUnScheduledVNFSet().getList().size() - 2) {
+                //System.exit(333);
+            }
             VNF vnf = this.selectVNF();
-            if(vnf == null){
+            if (vnf == null) {
                 System.out.println("test");
             }
             //vcpu全体から，vnfの割当先を選択する．
             this.scheduleVNF(vnf, this.vcpuMap);
+            n++;
         }
         double val = -1;
         Iterator<Long> endITe = this.getSfc().getEndVNFSet().iterator();
