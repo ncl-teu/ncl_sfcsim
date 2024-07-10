@@ -406,11 +406,11 @@ public class BaseVNFSchedulingAlgorithm {
             //System.out.println(vnf.getTempName());
             if (vnf.getTempName() == "KHEFTPLUS") {
                 return this.calcImageComTimePLUS(vnf, vcpu);
-            } else if (vnf.getTempName() == "KHEFTBEST") {
-                return this.calcImageComTimePLUS(vnf, vcpu);
             } else if (vnf.getTempName() == "KHEFTPRO") {
                 return this.calcImageComTimePRO(vnf, vcpu);
-                //return 0.0d;
+            } else if (vnf.getTempName() == "KHEFTBEST") {
+                //最好的情况，下载不要时间
+                return 0.0d;
             } else {
                 return this.calcImageComTime(vnf, vcpu);
             }
@@ -477,24 +477,37 @@ public class BaseVNFSchedulingAlgorithm {
 
         return time;
     }
+
+
+    public void showImageDict(VNF vnf, VCPU vcpu) {
+        System.out.println(NFVUtil.getImageDict());
+    }
+
     public void execDownloadPRO(VNF vnf, VCPU vcpu) {
         int vnfType = vnf.getType();
 
         NFVUtil.setImageDict(vnfType, vcpu);
     }
+
     public double calcImageComTimePRO(VNF vnf, VCPU vcpu) {
+        //使用plus 做对比
+        double plusT = calcImageComTimePLUS(vnf, vcpu);
         int vnfType = vnf.getType();
         //long dataSize = vnf.getImageSize();
-        double t = 10000000;
-        double new_t = 10000000;
+        double t = NFVUtil.MAXValue;
+        double new_t = NFVUtil.MAXValue;
         HashMap<Integer, ArrayList<VCPU>> vnfTypeMap = NFVUtil.getImageDict();
-
+        VCPU ALvcpu1 = vcpu;
+        boolean dlFromCpu = false;
         if (vnfTypeMap.containsKey(vnfType)) {
+            dlFromCpu = true;
             ArrayList<VCPU> vcpuList = NFVUtil.getImageDictByImageType(vnfType);
+
             for (VCPU ALvcpu : vcpuList) {
                 new_t = calcImageComTimeBTcpu(vcpu, ALvcpu, vnf);
                 if (new_t < t) {
                     t = new_t;
+                    ALvcpu1 = ALvcpu;
                 }
             }
             //NFVUtil.setImageDict(vnfType, vcpu);
@@ -502,8 +515,26 @@ public class BaseVNFSchedulingAlgorithm {
             t = calcImageComTime(vnf, vcpu);
             //NFVUtil.setImageDict(vnfType, vcpu);
         }
-        return t;
+        double retT = NFVUtil.MAXValue;
+        if (plusT < t) {
+            retT = plusT;
+        } else {
+            retT = t;
+            if (dlFromCpu) {
+                //如果是从别的cpu下载，那么必须给那个cpu加一个下载延迟。
+                NFVUtil.setCpuDLDelay(ALvcpu1, t);
+            }
+        }
+        //判断有没有被别的cpu下载，有的话，需要加上返回。
+        double delayT = NFVUtil.getCpuDLDelay(vcpu);
+
+        return retT + delayT;
     }
+
+    public void showVnfTypeKV(VNF vnf, VCPU vcpu) {
+        System.out.println(NFVUtil.getVnfTypeKV());
+    }
+
     public void execDownloadPLUS(VNF vnf, VCPU vcpu) {
         int vnfType = vnf.getType();
         //k fromDCIDValue
@@ -522,6 +553,7 @@ public class BaseVNFSchedulingAlgorithm {
         NFVUtil.setVnfTypeKV(vnfType, nkv);
     }
 
+    //
     public double calcImageComTimePLUS(VNF vnf, VCPU vcpu) {
         int vnfType = vnf.getType();
         //k fromDCIDValue
@@ -549,6 +581,7 @@ public class BaseVNFSchedulingAlgorithm {
         }
 
         HashMap<Integer, ArrayList<ArrayList<Long>>> vnfTypeKV = NFVUtil.getVnfTypeKV();
+        //先判断有没有下载过这个imageType，没有下载的话下载，下载了的话判断有没有kv，有直接返回0
         if (vnfTypeKV.containsKey(vnfType)) {
             ArrayList<ArrayList<Long>> kvList = vnfTypeKV.get(vnfType);
             if (kvList.contains(nkv)) {
@@ -556,13 +589,13 @@ public class BaseVNFSchedulingAlgorithm {
             } else {
                 double ret = calcImageComTime(vnf, vcpu);
                 //试算的时候不能下载
-                NFVUtil.setVnfTypeKV(vnfType, nkv);
+                //NFVUtil.setVnfTypeKV(vnfType, nkv);
                 return ret;
             }
         } else {
             double ret = calcImageComTime(vnf, vcpu);
             //试算的时候不能下载
-            NFVUtil.setVnfTypeKV(vnfType, nkv);
+            //NFVUtil.setVnfTypeKV(vnfType, nkv);
             return ret;
         }
     }
@@ -900,8 +933,13 @@ public class BaseVNFSchedulingAlgorithm {
                 VNF lastVNF = dlList.getLast();
                 //System.out.println(lastVNF);
                 double dlFinishTime = lastVNF.getDlFinishTime();
+                //if(dlFinishTime != -1){
+                //    System.out.println(dlFinishTime);
+                //}
+
                 map.put("start", dlFinishTime);
                 //当該VNFのimage DL完了時刻を求める。
+                //System.out.println(vnf.getTempName());
                 dl_finish_time = dlFinishTime + this.calcDownloadImageTime(vnf, vcpu);
                 //System.out.println("dlFinishTime = " + dlFinishTime);
                 //System.out.println("this.calcDownloadImageTime(vnf, vcpu) = " + this.calcDownloadImageTime(vnf, vcpu));

@@ -90,15 +90,15 @@ public class NFVUtil extends CloudUtil {
     // public static double nfv_fairness_weight_rt;
 
     //key:type v:cpu id set
-    public static HashMap<Integer, Set<VCPU>> vnfTypeMap;
-
-    public static HashMap<Integer, Set<VCPU>> getVnfTypeMap() {
-        return vnfTypeMap;
-    }
-
-    public static void setVnfTypeMap(int k, Set<VCPU> v) {
-        vnfTypeMap.put(k, v);
-    }
+    //public static HashMap<Integer, Set<VCPU>> vnfTypeMap;
+    //
+    //public static HashMap<Integer, Set<VCPU>> getVnfTypeMap() {
+    //    return vnfTypeMap;
+    //}
+    //
+    //public static void setVnfTypeMap(int k, Set<VCPU> v) {
+    //    vnfTypeMap.put(k, v);
+    //}
 
 
     public static HashMap<Integer, ArrayList<ArrayList<Long>>> vnfTypeKV;
@@ -107,16 +107,48 @@ public class NFVUtil extends CloudUtil {
         return vnfTypeKV;
     }
 
+    public static void resetVnfTypeKV() {
+        vnfTypeKV.clear();
+    }
+
     public static void setVnfTypeKV(Integer i, ArrayList<Long> kv) {
         HashMap<Integer, ArrayList<ArrayList<Long>>> kvMap = getVnfTypeKV();
         ArrayList<ArrayList<Long>> kvList = kvMap.get(i);
+        //判断key为imgType的内容有没有机器
         if (kvList == null) {
             kvList = new ArrayList<>();
             kvList.add(kv);
             kvMap.put(i, kvList);
         } else {
-            kvList.add(kv);
-            kvMap.put(i, kvList);
+            if (!kvList.contains(kv)) {
+                kvList.add(kv);
+                kvMap.put(i, kvList);
+            }
+
+        }
+    }
+
+    //从这个cpu下载的话，这个cpu要延时
+    //每次用cup做运算的时候，先要计算这个延时
+    public static HashMap<VCPU, Double> cpuDLDelay;
+
+    public static void setCpuDLDelay(VCPU cpu, double t) {
+        double nt = 0;
+        if (cpuDLDelay.containsKey(cpu)) {
+            double ot = getCpuDLDelay(cpu);
+            nt = ot + t;
+        } else {
+            nt = t;
+        }
+        cpuDLDelay.put(cpu, nt);
+
+    }
+
+    public static Double getCpuDLDelay(VCPU vcpu) {
+        if (cpuDLDelay.containsKey(vcpu)) {
+            return cpuDLDelay.get(vcpu);
+        } else {
+            return 0.0;
         }
     }
 
@@ -174,6 +206,7 @@ public class NFVUtil extends CloudUtil {
         try {
             NFVUtil.vnf_image_dict = new HashMap<>();
             NFVUtil.vnfTypeKV = new HashMap<>();
+            NFVUtil.cpuDLDelay = new HashMap<>();
             //設定情報
             NFVUtil.prop = new Properties();
             NFVUtil.prop.load(new FileInputStream(propName));

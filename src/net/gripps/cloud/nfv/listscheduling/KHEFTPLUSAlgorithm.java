@@ -20,7 +20,7 @@ public class KHEFTPLUSAlgorithm extends HEFT_VNFAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
-
+        vnf.setTempName(getName());
         //System.out.println(NFVUtil.getVnfTypeKV());
         //edit by SUN.
         //System.out.println(getName() + " schedule.");
@@ -28,6 +28,7 @@ public class KHEFTPLUSAlgorithm extends HEFT_VNFAlgorithm {
 
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
+        double ret_dTime = NFVUtil.MAXValue;
         VCPU retCPU = null;
 
         Iterator<VCPU> cpuIte = map.values().iterator();
@@ -71,6 +72,7 @@ public class KHEFTPLUSAlgorithm extends HEFT_VNFAlgorithm {
                     ret_finishtime = fTime;
                     ret_starttime = est;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             } else if (dCompTime > est) {
                 //下载时间>最早开始时间
@@ -78,8 +80,9 @@ public class KHEFTPLUSAlgorithm extends HEFT_VNFAlgorithm {
                 double DHEFT_fTime = dCompTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 if (DHEFT_fTime <= ret_finishtime) {
                     ret_finishtime = DHEFT_fTime;
-                    ret_starttime = est;
+                    ret_starttime = dCompTime;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             }
         }
@@ -89,16 +92,22 @@ public class KHEFTPLUSAlgorithm extends HEFT_VNFAlgorithm {
         dlQueue.add(vnf);
         retCPU.setDlQueue(dlQueue);
 
+        //edit by SUN
         execDownloadPLUS(vnf, retCPU);
+        //showVnfTypeKV(vnf, retCPU);
 
 
         //System.out.println(ret_starttime + "|" + ret_finishtime + "|" + ret_starttime + "|" + retCPU.getPrefix().toString());
+
+        //System.out.println(ret_starttime + " " + ret_finishtime+ " " +ret_dTime);
 
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
         vnf.setFinishTime(ret_finishtime);
         vnf.setEST(ret_starttime);
         vnf.setvCPUID(retCPU.getPrefix());
+        //System.out.println(ret_dTime);
+        vnf.setDlFinishTime(ret_dTime);
 
         //retCPUにおいて，vnfを追加する
         this.addVNFQueue(retCPU, vnf);

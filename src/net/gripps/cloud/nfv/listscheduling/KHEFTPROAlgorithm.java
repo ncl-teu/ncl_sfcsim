@@ -16,6 +16,7 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
     public KHEFTPROAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
         setName("KHEFTPRO");
+        NFVUtil.resetVnfTypeKV();
     }
 
     @Override
@@ -27,6 +28,8 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
 
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
+        double ret_dTime = NFVUtil.MAXValue;
+
         VCPU retCPU = null;
 
         Iterator<VCPU> cpuIte = map.values().iterator();
@@ -68,6 +71,7 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
                     ret_finishtime = fTime;
                     ret_starttime = est;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             } else if (dCompTime > est) {
                 //下载时间>最早开始时间
@@ -77,6 +81,7 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
                     ret_finishtime = DHEFT_fTime;
                     ret_starttime = dCompTime;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             }
         }
@@ -86,15 +91,20 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
         dlQueue.add(vnf);
         retCPU.setDlQueue(dlQueue);
 
+        //edit by SUN
         execDownloadPRO(vnf, retCPU);
+        //showImageDict(vnf, retCPU);
 
         //System.out.println(ret_starttime + "|" + ret_finishtime + "|" + ret_starttime + "|" + retCPU.getPrefix().toString());
 
+        //System.out.println(ret_starttime + " " + ret_finishtime+ " " +ret_dTime);
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
         vnf.setFinishTime(ret_finishtime);
         vnf.setEST(ret_starttime);
         vnf.setvCPUID(retCPU.getPrefix());
+        vnf.setDlFinishTime(ret_dTime);
+
 
         //retCPUにおいて，vnfを追加する
         this.addVNFQueue(retCPU, vnf);

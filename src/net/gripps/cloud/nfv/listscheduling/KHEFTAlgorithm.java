@@ -24,6 +24,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
+        double ret_dTime = NFVUtil.MAXValue;
         VCPU retCPU = null;
 
         Iterator<VCPU> cpuIte = map.values().iterator();
@@ -51,6 +52,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
                     ret_finishtime = fTime;
                     ret_starttime = est;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             } else if (dCompTime > est) {
                 //double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
@@ -59,6 +61,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
                     ret_finishtime = DHEFT_fTime;
                     ret_starttime = dCompTime;
                     retCPU = cpu;
+                    ret_dTime = dTime;
                 }
             }
         }
@@ -75,6 +78,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
         vnf.setFinishTime(ret_finishtime);
         vnf.setEST(ret_starttime);
         vnf.setvCPUID(retCPU.getPrefix());
+        vnf.setDlFinishTime(ret_dTime);
 
         //retCPUにおいて，vnfを追加する
         this.addVNFQueue(retCPU, vnf);
