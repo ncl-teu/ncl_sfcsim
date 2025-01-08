@@ -173,13 +173,13 @@ public class VNF implements Serializable {
 
     protected String tempName;
 
-    public void setTempName(String name){
+    public void setTempName(String name) {
         this.tempName = name;
     }
-    public String getTempName(){
+
+    public String getTempName() {
         return this.tempName;
     }
-
 
 
     public VNF(int in_type, long weight, long requiredMips, long requiredRecvBW, long requiredSendBW, String vCPUID, int percent) {
@@ -193,7 +193,7 @@ public class VNF implements Serializable {
             this.type = in_type;
 
         } else {
-            this.type = NFVUtil.genInt2(1, NFVUtil.vnf_type_max, 1, 0.5);
+            this.type = NFVUtil.genInt2(NFVUtil.vnf_type_min, NFVUtil.vnf_type_max, 1, 0.5);
         }
 
 

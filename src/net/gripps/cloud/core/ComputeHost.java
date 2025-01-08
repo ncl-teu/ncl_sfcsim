@@ -35,19 +35,19 @@ public class ComputeHost extends Machine {
     private String ipAddr;
 
 
-
     public ComputeHost(long machineID,
                        TreeMap<Long, CPU> cpuMap,
                        int num,
                        HashMap<String, VM> vmMap,
                        Long dcID,
                        String p,
-                       long bw)
-    {
+                       long bw) {
         super(machineID, cpuMap, num);
         this.vmMap = vmMap;
         this.dcID = dcID;
-        this.prefix =p;
+        this.prefix = p;
+        //edit by sun bw
+        //System.out.println("ComputeHost bw: "+bw);
         this.setBw(bw);
         this.ipAddr = null;
 

@@ -34,6 +34,7 @@ public class NFVEnvironment extends CloudEnvironment {
         String hostPrefix = 0 + CloudUtil.DELIMITER + len;
 
         //Dockerリポジトリを作成する
+        System.out.println("NFVUtil.repository_bw:" + NFVUtil.repository_bw);
         this.dockerRepository = new ComputeHost( len, null, 0, null, (long)1, hostPrefix, NFVUtil.repository_bw);
 
 

@@ -3,6 +3,7 @@ package net.gripps.cloud.nfv.sfc;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.clustering.common.aplmodel.CustomIDSet;
 import net.gripps.clustering.common.aplmodel.DataDependence;
+import sun.lwawt.macosx.CSystemTray;
 
 import java.util.*;
 
@@ -152,13 +153,16 @@ public class SFCGenerator {
     public SFC multipleSFCProcess() {
         try {
             //仮想start/endを用意する．
+            //准备虚拟开始/结束。
             this.virtualStartVNF = new VNF(NFVUtil.VNF_TYPE_VSTART, 0, -1, -1, -1, null, 0);
             //通常，VNFは1から始まるが，0をセットする．
+            //vector是一个线程安全的数组
             Vector<Long> startIDVec = new Vector<Long>();
             startIDVec.add(new Long(1));
             startIDVec.add(new Long(0));
 
             //APLを生成して，シングルトンにセットする．
+            //生成APL并将其设置为单例。
             SFC orgSFC = new SFC(-1, -1, -1, -1, -1, -1,
                     -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
 
@@ -181,10 +185,17 @@ public class SFCGenerator {
 
             // this.virtualStartVNF.se
             //SFCたちを作る．
+            //创建 SFC
+            //multiple_sfc_num ==1
             for (int i = 0; i < NFVUtil.multiple_sfc_num; i++) {
                 //VNF数を決定．
+                //任务数
                 long tasknum = NFVUtil.genLong2(NFVUtil.multiple_sfc_vnf_num_min, NFVUtil.multiple_sfc_vnf_num_max,
                         NFVUtil.dist_multiple_sfc_vnf_num, NFVUtil.dist_multiple_sfc_vnf_num_mu);
+                //edit by SUN.
+                tasknum = 100;
+                System.out.println("tasknum:"+tasknum);
+                //System.exit(0);
                 //APLを生成して，シングルトンにセットする．
                 SFC childSFC = new SFC(-1, -1, -1, -1, -1, -1,
                         -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
@@ -203,10 +214,14 @@ public class SFCGenerator {
 
 
 
-                    //VNFにimage sizeをセットする。
+
                     //乱数を決める
                     long imageSize = NFVUtil.genLong(NFVUtil.vnf_image_size_min,NFVUtil.vnf_image_size_max);
                     Long typeID = Long.valueOf(vnf.getType());
+                    //System.out.println("typeID:"+typeID);
+                    //System.out.println("imageSize:"+imageSize);
+
+                    //VNFにimage sizeをセットする。
                     if(this.typMap.containsKey(typeID)){
                         imageSize = this.typMap.get(typeID);
                     }else{
@@ -313,7 +328,7 @@ public class SFCGenerator {
         weight = NFVUtil.genLong2(NFVUtil.vnf_weight_min, NFVUtil.vnf_weight_max, NFVUtil.dist_vnf_weight, NFVUtil.dist_vnf_weight_mu);
         //使用率を求める．
         int usage = NFVUtil.genInt2(NFVUtil.vnf_usage_min, NFVUtil.vnf_usage_max, NFVUtil.dist_vnf_usage, NFVUtil.dist_vnf_usage_mu);
-        int type = NFVUtil.genInt(1, NFVUtil.vnf_type_max);
+        int type = NFVUtil.genInt(NFVUtil.vnf_type_min, NFVUtil.vnf_type_max);
 
         VNF newVNF = new VNF(type, weight, -1, -1, -1, null, usage);
 

@@ -46,6 +46,8 @@ public class MRCloudEnvironment extends CloudEnvironment {
             dc.setId(new Long(i));
 
             long dc_bw= CloudUtil.genLong(CloudUtil.datacenter_externalbw_min, CloudUtil.datacenter_externalbw_max);
+            dc_bw =1;
+            System.out.println("XXXXXXXXXX");
             dc.setBw(dc_bw);
             //ホスト数の生成
             long hostNum = CloudUtil.genLong(CloudUtil.host_num_foreachdc_min, CloudUtil.host_num_foreachdc_max);

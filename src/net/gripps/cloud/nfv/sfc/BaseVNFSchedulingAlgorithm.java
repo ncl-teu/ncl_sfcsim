@@ -516,15 +516,24 @@ public class BaseVNFSchedulingAlgorithm {
             //NFVUtil.setImageDict(vnfType, vcpu);
         }
         double retT = NFVUtil.MAXValue;
-        if (plusT < t) {
-            retT = plusT;
-        } else {
+        if(false){
+            if (plusT < t) {
+                retT = plusT;
+            } else {
+                retT = t;
+                if (dlFromCpu) {
+                    //如果是从别的cpu下载，那么必须给那个cpu加一个下载延迟。
+                    NFVUtil.setCpuDLDelay(ALvcpu1, t);
+                }
+            }
+        } else{
             retT = t;
             if (dlFromCpu) {
                 //如果是从别的cpu下载，那么必须给那个cpu加一个下载延迟。
                 NFVUtil.setCpuDLDelay(ALvcpu1, t);
             }
         }
+
         //判断有没有被别的cpu下载，有的话，需要加上返回。
         double delayT = NFVUtil.getCpuDLDelay(vcpu);
 
@@ -641,7 +650,15 @@ public class BaseVNFSchedulingAlgorithm {
         } else {
             //DCが異なれば，DC間の通信も考慮スべき．
             //如果DC不同，还应该考虑DC之间的通信。
-            dcBW = Math.min(fromCloud.getBw(), toCloud.getBw());
+            long fromCloudBW = fromCloud.getBw();
+            long toCloudBW = toCloud.getBw();
+            toCloudBW = NFVUtil.repository_dc_bw;
+
+            dcBW = Math.min(fromCloudBW, toCloudBW);
+            //add by SUN.
+            //System.out.println("fromCloudBW: "+fromCloudBW);
+            //System.out.println("toCloudBW: "+toCloudBW);
+            //System.out.println("min dcBW: "+dcBW);
 
         }
         Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
@@ -1009,11 +1026,14 @@ public class BaseVNFSchedulingAlgorithm {
         double arrival_time = 0;
         double dl_finish_time = 0;
         //vcpuの、ダウンロード開始時刻と完了時刻を計算する。
+        //计算vcpu的下载开始时间和完成时间。
         //dl_finish_time = this.getDLInfo(vnf, cpu).get("finish");
         arrival_time = this.calcDeadLine(vnf, cpu).get("arrival_time");
 
         //arrival_time(DRT) ~ 最後のFinishTimeまでの範囲で，task/cpu速度の時間が埋められる
         //箇所があるかどうかを調べる．
+        //arrival_time(DRT) ~ 任务/CPU速度的时间填充在直到最后一个FinishTime的范围内
+        //检查该位置是否存在。
         Object[] oa = cpu.getVnfQueue().toArray();
         double ret_starttime = NFVUtil.MAXValue;
 
