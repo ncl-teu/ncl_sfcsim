@@ -1,4 +1,4 @@
 .idea
 .DS_Store
-.out
-.out1
+out/
+out1/
