@@ -197,7 +197,7 @@ public class KHEFTTest {
             alg7.mainProcess();
             //System.out.println("makespan[DHEFT]:"+alg7.getMakeSpan()+" / # of vCPUs: "+alg7.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg7.getHostSet().size());
             //System.out.print("SLR[D-HEFT]:" + NFVUtil.getRoundedValue(alg7.getMakeSpan() / alg7.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg7.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg7.getHostSet().size() + "\n");
-            //System.out.println("MakeSpan[D-HEFT]:" + alg7.getMakeSpan());
+            System.out.println("MakeSpan[D-HEFT]:" + alg7.getMakeSpan());
             System.out.println("SLR[D-HEFT]:" + alg7.getMakeSpan()/alg13.getMakeSpan());
             //System.out.print("SLR2[D-HEFT]:" + NFVUtil.getRoundedValue(alg7.getMakeSpan() / alg7.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg7.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg7.getHostSet().size() + "\n");
             System.out.println("");
@@ -207,7 +207,7 @@ public class KHEFTTest {
             alg9.mainProcess();
             // System.out.println("makespan[KHEFT]:"+alg9.getMakeSpan()+" / # of vCPUs: "+alg9.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg9.getHostSet().size());
             //System.out.print("SLR[K-HEFT]:" + NFVUtil.getRoundedValue(alg9.getMakeSpan() / alg9.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg9.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg9.getHostSet().size() + "\n");
-            //System.out.println("MakeSpan[K-HEFT]:" + alg9.getMakeSpan());
+            System.out.println("MakeSpan[K-HEFT]:" + alg9.getMakeSpan());
             System.out.println("SLR[K-HEFT]:" + alg9.getMakeSpan()/alg13.getMakeSpan());
             //System.out.print("SLR2[K-HEFT]:" + NFVUtil.getRoundedValue(alg9.getMakeSpan() / alg9.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg9.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg9.getHostSet().size() + "\n");
             System.out.println("");

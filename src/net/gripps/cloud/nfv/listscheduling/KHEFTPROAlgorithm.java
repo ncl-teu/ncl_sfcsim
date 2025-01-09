@@ -49,6 +49,7 @@ public class KHEFTPROAlgorithm extends HEFT_VNFAlgorithm {
             //DockerイメージのDLが必要かを判別する
             //判断是否需要Docker镜像DL
             double dTime = this.calcDownloadImageTime(vnf, cpu);
+            //System.out.println(dTime);
             if (dTime == -1) {
                 continue;
             }

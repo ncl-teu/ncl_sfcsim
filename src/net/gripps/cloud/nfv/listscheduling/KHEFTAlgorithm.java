@@ -22,6 +22,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        vnf.setTempName(getName());
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
         double ret_dTime = NFVUtil.MAXValue;
@@ -35,6 +36,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
             //DockerイメージのDLが必要かを判別する
             double dTime = this.calcDownloadImageTime(vnf, cpu);
+            //System.out.println(dTime);
             if (dTime == -1) {
                 continue;
             }

@@ -19,6 +19,7 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        vnf.setTempName(getName());
         //edit by SUN.
         //System.out.println(getName() + " schedule.");
         //super.scheduleVNF(vnf, map);
@@ -30,11 +31,13 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
         VCPU retCPU = null;
         //VCPUのイテレータを取得
         Iterator<VCPU> cpuIte = map.values().iterator();
+        double dTime_temp = 0;
         while (cpuIte.hasNext()) {
             VCPU cpu = cpuIte.next();
             //ESTを計算する．
             double est = this.calcEST(vnf, cpu);
             double dTime = this.calcDownloadImageTime(vnf, cpu);
+            //System.out.println(dTime);
             if (dTime == -1) {
                 continue;
             }
@@ -52,8 +55,11 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
                 ret_finishtime = ftime;
                 ret_starttime = est + dTime;
                 retCPU = cpu;
+                dTime_temp= dTime;
+
             }
         }
+        //System.out.println("AAA"+dTime_temp);
         //System.out.println("setFinishTime" + ret_finishtime);
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
