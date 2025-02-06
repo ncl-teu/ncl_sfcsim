@@ -5,10 +5,7 @@ import net.gripps.cloud.core.ComputeHost;
 import net.gripps.cloud.core.VCPU;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
-import net.gripps.cloud.nfv.listscheduling.AHEFTAlgorithm;
-import net.gripps.cloud.nfv.listscheduling.AHEFTBESTAlgorithm;
-import net.gripps.cloud.nfv.listscheduling.DHEFTAlgorithm;
-import net.gripps.cloud.nfv.listscheduling.KHEFTAlgorithm;
+import net.gripps.cloud.nfv.listscheduling.*;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.SFCGenerator;
 import net.gripps.cloud.nfv.sfc.VNF;
@@ -16,7 +13,7 @@ import net.gripps.clustering.common.aplmodel.DataDependence;
 
 import java.util.Iterator;
 
-public class KHEFTTest {
+public class AHEFTTest {
 
     public static void main(String[] args) {
         for (int i = 0; i < 1; i++) {
@@ -122,74 +119,6 @@ public class KHEFTTest {
             System.out.println("CCR: " + CCR + " /VNF Num:" + sfc.getVnfMap().size());
 
 
-   /*     System.out.println("HostNum:"+env.getGlobal_hostMap().size() + "/vCPUNum:"+env.getGlobal_vcpuMap().size());
-        RandomVNFClusteringAlgorithm alg1 = new RandomVNFClusteringAlgorithm(env,sfc);
-        alg1.mainProcess();
-
-
-        double time = NFVUtil.getRoundedValue((double)totalSize/(double)alg1.getAveSpeed());
-        System.out.println("Exec. Time at One vCPU: "+ time);
-        //System.out.println("makespan[RandomVNFClustering]:"+alg1.getMakeSpan() +" / # of vCPUs: "+alg1.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg1.getHostSet().size());
-        System.out.println("SLR[RandomVNFClustering]:"+NFVUtil.getRoundedValue(alg1.getMakeSpan()/alg1.getTotalCPProcTimeAtMaxSpeed())+" / # of vCPUs: "+alg1.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg1.getHostSet().size()+"\n");
-*/
-/*
-        RandomVNFListSchedulingAlgorithm alg2 = new RandomVNFListSchedulingAlgorithm(env2, sfc2);
-        alg2.mainProcess();
-        System.out.println("makespan[RandomListSched]:"+alg2.getMakeSpan()+" / # of vCPUs: "+alg2.getAssignedVCPUMap().size() + "/ # of Hosts:"+alg2.getHostSet().size());
-
-/*
-        HEFT_VNFAlgorithm alg3 = new HEFT_VNFAlgorithm(env3, sfc3);
-        alg3.mainProcess();
-        System.out.println("makespan[HEFT-VNF]:"+alg3.getMakeSpan()+" / # of vCPUs: "+alg3.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg3.getHostSet().size());
-*/
-/*
-        SF_CUVAlgorithm alg4 = new SF_CUVAlgorithm(env4, sfc4);
-        alg4.mainProcess();
-        //System.out.println("makespan[CMWSL-VNF-ALL]:"+alg4.getMakeSpan()+" / # of vCPUs: "+alg4.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg4.getHostSet().size());
-        System.out.println("SLR[CMWSL]:"+NFVUtil.getRoundedValue(alg4.getMakeSpan()/alg4.getTotalCPProcTimeAtMaxSpeed())+" / # of vCPUs: "+alg4.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg4.getHostSet().size()+"\n");
-*/
-/*
-        SF_CUVAlgorithm alg5 = new SF_CUVAlgorithm(env5, sfc5);
-        alg5.mainProcess();
-        System.out.println("makespan[SF-CUV]:"+alg5.getMakeSpan()+" / # of vCPUs: "+alg5.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg5.getHostSet().size());
-        System.out.println("SLR[SF-CUV]:"+NFVUtil.getRoundedValue(alg5.getMakeSpan()/alg5.getTotalCPProcTimeAtMaxSpeed())+"\n");
-
-/*
-
-        NFVUtil.cmwsl_sched_area = 1;
-        SF_CUVAlgorithm alg6 = new SF_CUVAlgorithm(env6, sfc6);
-        alg6.mainProcess();
-        System.out.println("makespan[CMWSL-VNF-HOST]:"+alg6.getMakeSpan()+" / # of vCPUs: "+alg6.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg6.getHostSet().size());
-*/
-/*
-        RandomFairSchedulingAlgorithm alg6 = new RandomFairSchedulingAlgorithm(env6, sfc6);
-        //alg6.setMaxHostNum(alg5.getHostSet().size());
-        alg6.mainProcess();
-        //System.out.println("makespan[FairSched]:"+alg6.getMakeSpan()+" / # of vCPUs: "+alg6.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg6.getHostSet().size());
-        System.out.println("SLR[FairSched]:"+NFVUtil.getRoundedValue(alg6.getMakeSpan()/alg6.getTotalCPProcTimeAtMaxSpeed())+" / # of vCPUs: "+alg6.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg6.getHostSet().size()+"\n");
-
-        Iterator<VCPU> vcIte = alg6.getAssignedVCPUMap().values().iterator();
-  /*      while(vcIte.hasNext()){
-            VCPU vc = vcIte.next();
-            System.out.println("VCPUID:"+vc.getPrefix()+ "/ Num:"+vc.getVnfQueue().size() + "/Sped:"+vc.getMips()+"/BW:"+alg6.getBW(vc));
-        }
-   */
-
-
-            //HEFT_VNFAlgorithm alg8 = new HEFT_VNFAlgorithm(env8, sfc8);
-            //alg8.mainProcess();
-            ////System.out.println("makespan[HEFT-VNF]:"+alg8.getMakeSpan()+" / # of vCPUs: "+alg8.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg8.getHostSet().size());
-            //System.out.println("SLR[HEFT]:"+NFVUtil.getRoundedValue(alg8.getMakeSpan()/alg8.getTotalCPProcTimeAtMaxSpeed())+" / # of vCPUs: "+alg8.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg8.getHostSet().size()+"\n");
-            //System.out.println(alg8.getMakeSpan());
-            //System.out.println("");
-
-            //Ideal_HEFT_VNFAlgorithm alg10 = new Ideal_HEFT_VNFAlgorithm(env10, sfc10);
-            //alg10.mainProcess();
-            ////System.out.println("makespan[HEFT-VNF]:"+alg8.getMakeSpan()+" / # of vCPUs: "+alg8.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg8.getHostSet().size());
-            ////System.out.print("SLR[IDEAL_HEFT]:" + NFVUtil.getRoundedValue(alg10.getMakeSpan() / alg10.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg10.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg10.getHostSet().size() + "\n");
-            //System.out.println("MakeSpan[IDEAL_HEFT]:" + alg10.getMakeSpan());
-            //System.out.println("");
-
             AHEFTBESTAlgorithm alg13 = new AHEFTBESTAlgorithm(env13, sfc13);
             alg13.mainProcess();
             // System.out.println("makespan[KHEFT]:"+alg9.getMakeSpan()+" / # of vCPUs: "+alg9.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg9.getHostSet().size());
@@ -204,6 +133,7 @@ public class KHEFTTest {
             System.out.println("SLR[D-HEFT]:" + alg7.getMakeSpan() / alg13.getMakeSpan());
             //System.out.print("SLR2[D-HEFT]:" + NFVUtil.getRoundedValue(alg7.getMakeSpan() / alg7.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg7.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg7.getHostSet().size() + "\n");
             System.out.println("");
+
 
 
             KHEFTAlgorithm alg9 = new KHEFTAlgorithm(env9, sfc9);
@@ -221,7 +151,7 @@ public class KHEFTTest {
             // System.out.println("makespan[KHEFT]:"+alg9.getMakeSpan()+" / # of vCPUs: "+alg9.getAssignedVCPUMap().size()+ "/ # of Hosts:"+alg9.getHostSet().size());
             //System.out.print("SLR[K-HEFT-PRO]:" + NFVUtil.getRoundedValue(alg12.getMakeSpan() / alg12.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg12.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg12.getHostSet().size() + "\n");
             //System.out.println("MakeSpan[K-HEFT-PRO]:" + alg12.getMakeSpan());
-            System.out.println();
+            System.out.println("MakeSpan["+alg12.getName()+"]:" + alg12.getMakeSpan());
             System.out.println("SLR[" + alg12.getName() + "]:" + alg12.getMakeSpan() / alg13.getMakeSpan());
             System.out.print("SLR2[" + alg12.getName() + "]:" + NFVUtil.getRoundedValue(alg12.getMakeSpan() / alg12.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg12.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg12.getHostSet().size() + "\n");
 

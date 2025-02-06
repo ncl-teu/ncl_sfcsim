@@ -14,7 +14,7 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     public DHEFTAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
-        setName("DHeft");
+        setName("DHEFT");
     }
 
     @Override

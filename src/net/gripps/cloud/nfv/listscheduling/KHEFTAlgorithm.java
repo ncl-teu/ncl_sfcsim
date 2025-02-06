@@ -42,6 +42,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
             }
             //イメージのDL完了時刻:DLInfoから取得
             double dCompTime = this.getDLInfo(vnf, cpu).get("finish");
+            //System.out.println(dCompTime+"-"+est);
             //DL完了時刻がタスクの実行開始時刻に間に合うか判別
             //間に合う:DLを割り当て
             //間に合わない:DHEFTAlgorithmを使う

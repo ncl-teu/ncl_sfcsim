@@ -357,6 +357,7 @@ public class BaseVNFSchedulingAlgorithm {
                 retCPU = cpu;
             }
         }
+
         double dTime = this.calcDownloadImageTime(vnf, retCPU);
         if (dTime == -1) {
             dTime = 0;
@@ -403,19 +404,14 @@ public class BaseVNFSchedulingAlgorithm {
             return 0.0d;
         } else {
             //System.out.println(vnf.getTempName());
-            if (vnf.getTempName() == "KHEFTPLUS") {
-                return this.calcImageComTimePLUS(vnf, vcpu);
-            } else if (vnf.getTempName() == "KHEFTPRO") {
+            if (vnf.getTempName() == "AHEFT") {
                 return this.calcImageComTimePRO(vnf, vcpu);
-            } else if (vnf.getTempName() == "KHEFTBEST") {
-                //最好的情况，下载不要时间
+            } else if (vnf.getTempName() == "AHEFTBEST") {
+                //Best Situation without download time. edit by Sun.
                 return 0.0d;
-            } else if (vnf.getTempName() == "KHEFT")  {
-                return this.calcImageComTimeKHEFT(vnf, vcpu);
-            }else if (vnf.getTempName() == "DHeft"){
-                return this.calcImageComTimeDHEFT(vnf, vcpu);
-            }else{
-                return 100000000;
+            } else {
+                //DHEFT and KHEFT
+                return this.calcImageComTime(vnf, vcpu);
             }
         }
     }
@@ -518,7 +514,7 @@ public class BaseVNFSchedulingAlgorithm {
             //NFVUtil.setImageDict(vnfType, vcpu);
         }
         double retT = NFVUtil.MAXValue;
-        if(false){
+        if (false) {
             if (plusT < t) {
                 retT = plusT;
             } else {
@@ -528,7 +524,7 @@ public class BaseVNFSchedulingAlgorithm {
                     NFVUtil.setCpuDLDelay(ALvcpu1, t);
                 }
             }
-        } else{
+        } else {
             retT = t;
             if (dlFromCpu) {
                 //如果是从别的cpu下载，那么必须给那个cpu加一个下载延迟。
@@ -633,125 +629,6 @@ public class BaseVNFSchedulingAlgorithm {
      */
     public double calcImageComTime(VNF vnf, VCPU vcpu) {
         //System.out.println("XXXXXXXXX");
-        long dataSize = vnf.getImageSize();
-        //DCの情報@vcpu側
-        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
-        //DBの情報@リポジトリ
-        NFVEnvironment nEnv = (NFVEnvironment) this.env;
-        //リポジトリのdc
-        Long toDCID = nEnv.getDockerRepository().getDcID();
-
-        //Long toDCID = CloudUtil.getInstance().getDCID(toVCPU.getPrefix());
-        long dcBW = NFVUtil.MAXValue;
-        Cloud fromCloud = env.getDcMap().get(fromDCID);
-        Cloud toCloud = env.getDcMap().get(toDCID);
-        boolean isSameDC = false;
-        //同一クラウド内であれば，DC間の通信は考慮しなくて良い．
-        //如果是在同一个云内，则不需要考虑DC之间的通信。
-        if (fromDCID.longValue() == toDCID.longValue()) {
-            isSameDC = true;
-        } else {
-            //DCが異なれば，DC間の通信も考慮スべき．
-            //如果DC不同，还应该考虑DC之间的通信。
-            long fromCloudBW = fromCloud.getBw();
-            long toCloudBW = toCloud.getBw();
-            toCloudBW = NFVUtil.repository_dc_bw;
-
-            dcBW = Math.min(fromCloudBW, toCloudBW);
-            //add by SUN.
-            //System.out.println("fromCloudBW: "+fromCloudBW);
-            //System.out.println("toCloudBW: "+toCloudBW);
-            //System.out.println("min dcBW: "+dcBW);
-
-        }
-        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
-
-
-        //後は，ホスト間での通信
-        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
-        ComputeHost toHost = nEnv.getDockerRepository();
-        long hostBW = NFVUtil.MAXValue;
-        if (isSameDC) {
-            if (fromHost.getMachineID() == toHost.getMachineID()) {
-                //同一ホストなら，0を返す．
-                return 0;
-            } else {
-                hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-            }
-        } else {
-            hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-        }
-
-
-        long realBW = Math.min(dcBW, hostBW);
-
-        double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
-        //System.out.println("XXXX"+time);
-        return time;
-
-    }
-
-    public double calcImageComTimeDHEFT(VNF vnf, VCPU vcpu) {
-        //System.out.println("XXXXXXXXX");
-        long dataSize = vnf.getImageSize();
-        //DCの情報@vcpu側
-        Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
-        //DBの情報@リポジトリ
-        NFVEnvironment nEnv = (NFVEnvironment) this.env;
-        //リポジトリのdc
-        Long toDCID = nEnv.getDockerRepository().getDcID();
-
-        //Long toDCID = CloudUtil.getInstance().getDCID(toVCPU.getPrefix());
-        long dcBW = NFVUtil.MAXValue;
-        Cloud fromCloud = env.getDcMap().get(fromDCID);
-        Cloud toCloud = env.getDcMap().get(toDCID);
-        boolean isSameDC = false;
-        //同一クラウド内であれば，DC間の通信は考慮しなくて良い．
-        //如果是在同一个云内，则不需要考虑DC之间的通信。
-        if (false) {
-            isSameDC = true;
-        } else {
-            //DCが異なれば，DC間の通信も考慮スべき．
-            //如果DC不同，还应该考虑DC之间的通信。
-            long fromCloudBW = fromCloud.getBw();
-            long toCloudBW = toCloud.getBw();
-            toCloudBW = NFVUtil.repository_dc_bw;
-
-            dcBW = Math.min(fromCloudBW, toCloudBW);
-            //add by SUN.
-            //System.out.println("fromCloudBW: "+fromCloudBW);
-            //System.out.println("toCloudBW: "+toCloudBW);
-            //System.out.println("min dcBW: "+dcBW);
-
-        }
-        Long fromHostID = CloudUtil.getInstance().getHostID(vcpu.getPrefix());
-
-
-        //後は，ホスト間での通信
-        ComputeHost fromHost = fromCloud.getComputeHostMap().get(fromHostID);
-        ComputeHost toHost = nEnv.getDockerRepository();
-        long hostBW = NFVUtil.MAXValue;
-        if (false) {
-            if (fromHost.getMachineID() == toHost.getMachineID()) {
-                //同一ホストなら，0を返す．
-                return 0;
-            } else {
-                hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-            }
-        } else {
-            hostBW = Math.min(fromHost.getBw(), toHost.getBw());
-        }
-
-
-        long realBW = Math.min(dcBW, hostBW);
-
-        double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
-        //System.out.println("XXXX"+time);
-        return time;
-
-    }
-
-    public double calcImageComTimeKHEFT(VNF vnf, VCPU vcpu) {
         long dataSize = vnf.getImageSize();
         //DCの情報@vcpu側
         Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());

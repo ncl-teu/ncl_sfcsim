@@ -171,7 +171,7 @@ public class KHEFTTest_Auto {
         List<Integer>  Hosts_KHEFT= new ArrayList();
 
         for(int i = 0; i < roop; i++) {
-            KHEFTAlgorithm1 alg9 = new KHEFTAlgorithm1(env9, sfc9);
+            AHEFTAlgorithm alg9 = new AHEFTAlgorithm(env9, sfc9);
             alg9.mainProcess();
             SLR_KHEFT.add(NFVUtil.getRoundedValue(alg9.getMakeSpan() / alg9.getTotalCPProcTimeAtMaxSpeed()));
             vCPUs_KHEFT.add(alg9.getAssignedVCPUMap().size());
