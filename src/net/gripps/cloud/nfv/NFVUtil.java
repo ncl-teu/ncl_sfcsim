@@ -214,91 +214,87 @@ public class NFVUtil extends CloudUtil {
             NFVUtil.prop.load(new FileInputStream(propName));
 
             //固定参数
-            System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            System.out.println("+++++++++++++++++++++++vnf parameters++++++++++++++++++++++++++++++");
             NFVUtil.vnf_weight_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_min"));
             NFVUtil.vnf_weight_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_max"));
-            System.out.println("#1 vnf_weight: "+ NFVUtil.vnf_weight_min+"-"+ NFVUtil.vnf_weight_max);
+            System.out.println("#1 vnf weight (impact CCR)");
+            System.out.println("vnf_weight_min: "+ NFVUtil.vnf_weight_min);
+            System.out.println("vnf_weight_max: "+ NFVUtil.vnf_weight_max);
+            System.out.println("");
 
             NFVUtil.dist_vnf_weight = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight"));
             NFVUtil.dist_vnf_weight_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight_mu"));
-            System.out.println("#2 dist_vnf_weight&mu: "+ NFVUtil.dist_vnf_weight+"-"+ NFVUtil.dist_vnf_weight_mu);
 
             NFVUtil.vnf_datasize_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_min"));
             NFVUtil.vnf_datasize_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_max"));
-            System.out.println("#3 vnf_datasize_min: "+ NFVUtil.vnf_datasize_min+"-"+ NFVUtil.vnf_datasize_max);
 
             NFVUtil.dist_vnf_datasize = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize"));
             NFVUtil.dist_vnf_datasize_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize_mu"));
-            System.out.println("#4 dist_vnf_datasize: "+ NFVUtil.dist_vnf_datasize+"-"+ NFVUtil.dist_vnf_datasize_mu);
 
             NFVUtil.sfc_vnf_num = Long.valueOf(CloudUtil.prop.getProperty("sfc_vnf_num"));
-            System.out.println("#5 sfc_vnf_num: "+ NFVUtil.sfc_vnf_num+"-"+ NFVUtil.sfc_vnf_num);
+            System.out.println("#2 sfc_vnf_num: "+ NFVUtil.sfc_vnf_num);
+            System.out.println("");
             // NFVUtil.sfc_vnf_indegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_min"));
             // NFVUtil.sfc_vnf_indegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_max"));
 
             NFVUtil.sfc_vnf_outdegree_min = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_min"));
             NFVUtil.sfc_vnf_outdegree_max = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_max"));
-            System.out.println("#6 sfc_vnf_outdegree_min: "+ NFVUtil.sfc_vnf_outdegree_min+"-"+ NFVUtil.sfc_vnf_outdegree_max);
 
             NFVUtil.multiple_sfc_num = Integer.valueOf(CloudUtil.prop.getProperty("multiple_sfc_num"));
-            System.out.println("#7 multiple_sfc_num: "+ NFVUtil.multiple_sfc_num+"-"+ NFVUtil.multiple_sfc_num);
 
             NFVUtil.multiple_sfc_vnf_num_min = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_min"));
             NFVUtil.multiple_sfc_vnf_num_max = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_max"));
-            System.out.println("#8 vnf_weight_min: "+ NFVUtil.multiple_sfc_vnf_num_min+"-"+ NFVUtil.multiple_sfc_vnf_num_min);
 
             NFVUtil.dist_multiple_sfc_vnf_num = Integer.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num"));
             NFVUtil.dist_multiple_sfc_vnf_num_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num_mu"));
-            System.out.println("#9 dist_multiple_sfc_vnf_num: "+ NFVUtil.dist_multiple_sfc_vnf_num+"-"+ NFVUtil.dist_multiple_sfc_vnf_num_mu);
 
             NFVUtil.startNumRate = Double.valueOf(prop.getProperty("sfc_vnf_startnumrate")).doubleValue();
-            System.out.println("#10 startNumRate: "+ NFVUtil.startNumRate+"-"+ NFVUtil.startNumRate);
 
             NFVUtil.depth_alpha = Integer.valueOf(prop.getProperty("sfc_vnf_deapthalpha")).intValue();
-            System.out.println("#11 depth_alpha: "+ NFVUtil.depth_alpha+"-"+ NFVUtil.depth_alpha);
 
             NFVUtil.calcmode_level = Integer.valueOf(prop.getProperty("calcmode_level")).intValue();
-            System.out.println("#12 calcmode_level: "+ NFVUtil.calcmode_level+"-"+ NFVUtil.calcmode_level);
 
             NFVUtil.nfv_fairness_weight_overlap = Double.valueOf(CloudUtil.prop.getProperty("nfv_fairness_weight_overlap"));
             // NFVUtil.nfv_fairness_weight_rt = Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_rt"));
-            System.out.println("#13 nfv_fairness_weight_overlap: "+ NFVUtil.nfv_fairness_weight_overlap+"-"+ NFVUtil.nfv_fairness_weight_overlap);
 
             NFVUtil.core_max_usage = Integer.valueOf(prop.getProperty("core_max_usage")).intValue();
-            System.out.println("#15 core_max_usage: "+ NFVUtil.core_max_usage+"-"+ NFVUtil.core_max_usage);
 
 
             NFVUtil.cloud_constrained_mode = Integer.valueOf(prop.getProperty("cloud_constrained_mode")).intValue();
-            System.out.println("#16 cloud_constrained_mode: "+ NFVUtil.cloud_constrained_mode+"-"+ NFVUtil.cloud_constrained_mode);
 
             NFVUtil.vnf_usage_min = Integer.valueOf(prop.getProperty("vnf_usage_min")).intValue();
             NFVUtil.vnf_usage_max = Integer.valueOf(prop.getProperty("vnf_usage_max")).intValue();
-            System.out.println("#17 vnf_usage_min: "+ NFVUtil.vnf_usage_min+"-"+ NFVUtil.vnf_usage_max);
 
             NFVUtil.dist_vnf_usage = Integer.valueOf(prop.getProperty("dist_vnf_usage")).intValue();
             NFVUtil.dist_vnf_usage_mu = Double.valueOf(prop.getProperty("dist_vnf_usage_mu")).doubleValue();
-            System.out.println("#18 dist_vnf_usage: "+ NFVUtil.dist_vnf_usage+"-"+ NFVUtil.dist_vnf_usage_mu);
 
             NFVUtil.cmwsl_sched_area = Integer.valueOf(prop.getProperty("cmwsl_sched_area")).intValue();
-            System.out.println("#19 cmwsl_sched_area: "+ NFVUtil.cmwsl_sched_area+"-"+ NFVUtil.cmwsl_sched_area);
 
             NFVUtil.vnf_type_max = Integer.valueOf(prop.getProperty("vnf_type_max")).intValue();
             NFVUtil.vnf_type_min = Integer.valueOf(prop.getProperty("vnf_type_min")).intValue();
             //NFVUtil.sfc_multimode =  Integer.valueOf(prop.getProperty("sfc_multimode")).intValue();
-            System.out.println("#20 vnf_type_max: "+ NFVUtil.vnf_type_max+"-"+ NFVUtil.vnf_type_min);
+            System.out.println("#3 vnf_type");
+            System.out.println("#3 vnf_type_min: "+ NFVUtil.vnf_type_min);
+            System.out.println("#3 vnf_type_max: "+ NFVUtil.vnf_type_max);
+            System.out.println("");
             //
             NFVUtil.vnf_image_size_min = Long.valueOf(prop.getProperty("vnf_image_size_min")).longValue();
             NFVUtil.vnf_image_size_max = Long.valueOf(prop.getProperty("vnf_image_size_max")).longValue();
-            System.out.println("#21 vnf_image_size_min: "+ NFVUtil.vnf_image_size_min+"-"+ NFVUtil.vnf_image_size_min);
+            System.out.println("#4 image size");
+            System.out.println("vnf_image_size_min: "+ NFVUtil.vnf_image_size_min);
+            System.out.println("vnf_image_size_max: "+ NFVUtil.vnf_image_size_max);
+            System.out.println("");
+
 
             NFVUtil.repository_bw = Long.valueOf(prop.getProperty("repository_bw")).longValue();
             NFVUtil.repository_dc_bw = Long.valueOf(prop.getProperty("repository_dc_bw")).longValue();
-            System.out.println("#22 repository_bw: "+ NFVUtil.repository_bw+"-"+ NFVUtil.repository_dc_bw);
+            System.out.println("#5 repository_bw: "+ NFVUtil.repository_bw);
+            System.out.println("");
+            System.out.println("#6 repository_dc_bw: "+ NFVUtil.repository_dc_bw);
 
             NFVUtil.cloud_container_dl_mode = Integer.valueOf(prop.getProperty("cloud_container_dl_mode")).intValue();
-            System.out.println("#23 cloud_container_dl_mode: "+ NFVUtil.cloud_container_dl_mode+"-"+ NFVUtil.cloud_container_dl_mode);
 
-            System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++");
+            System.out.println("+++++++++++++++++++++++vnf parameters++++++++++++++++++++++++++++++");
         } catch (Exception e) {
             e.printStackTrace();
         }

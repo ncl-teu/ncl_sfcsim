@@ -355,75 +355,65 @@ public class CloudUtil {
             CloudUtil.prop = new Properties();
             CloudUtil.prop.load(new FileInputStream(propName));
             //データセンター数
-            System.out.println("--------------------------------------------------------------------");
+            System.out.println("---------------------------parameters-----------------------------------------");
             CloudUtil.num_dc = Integer.valueOf(CloudUtil.prop.getProperty("datacenter_num"));
-            System.out.println("#1 num_dc"+":" +CloudUtil.num_dc);
+            //System.out.println("#1 num_dc"+":" +CloudUtil.num_dc);
 
             CloudUtil.datacenter_externalbw_min = Long.valueOf(CloudUtil.prop.getProperty("datacenter_externalbw_min"));
-            CloudUtil.datacenter_externalbw_min = Long.valueOf(CloudUtil.prop.getProperty("datacenter_externalbw_max"));
-            System.out.println("#2 datacenter_externalbw_min"+":" +CloudUtil.datacenter_externalbw_min);
-            System.out.println("#3 datacenter_externalbw_min"+":" +CloudUtil.datacenter_externalbw_min);
+            CloudUtil.datacenter_externalbw_max = Long.valueOf(CloudUtil.prop.getProperty("datacenter_externalbw_max"));
+
+            System.out.println("#1 datacenter_externalbw");
+            System.out.println("datacenter_externalbw_min"+":" +CloudUtil.datacenter_externalbw_min);
+            System.out.println("datacenter_externalbw_max"+":" +CloudUtil.datacenter_externalbw_max);
+            System.out.println("");
 
             CloudUtil.datacenter_externalbw_random = Integer.valueOf(CloudUtil.prop.getProperty("datacenter_externalbw_random"));
             CloudUtil.datacenter_externalbw = Long.valueOf(CloudUtil.prop.getProperty("datacenter_externalbw"));
-            System.out.println("#4 datacenter_externalbw_random"+":" +CloudUtil.datacenter_externalbw_random);
-            System.out.println("#5 datacenter_externalbw"+":" +CloudUtil.datacenter_externalbw);
 
             //VM数@クラウド
             CloudUtil.vm_num_foreachdc_min = Integer.valueOf(CloudUtil.prop.getProperty("vm_num_foreachdc_min"));
             CloudUtil.vm_num_foreachdc_max = Integer.valueOf(CloudUtil.prop.getProperty("vm_num_foreachdc_max"));
-            System.out.println("#6 vm_num_foreachdc_min"+":" +CloudUtil.vm_num_foreachdc_min);
-            System.out.println("#7 vm_num_foreachdc_max"+":" +CloudUtil.vm_num_foreachdc_max);
 
             //ホスト数@クラウド
             CloudUtil.host_num_foreachdc_min = Integer.valueOf(CloudUtil.prop.getProperty("host_num_foreachdc_min"));
             CloudUtil.host_num_foreachdc_max = Integer.valueOf(CloudUtil.prop.getProperty("host_num_foreachdc_max"));
-            System.out.println("#8 host_num_foreachdc_min"+":" +CloudUtil.host_num_foreachdc_min);
-            System.out.println("#9 host_num_foreachdc_max"+":" +CloudUtil.host_num_foreachdc_max);
 
             CloudUtil.dist_host_cpu_num = Integer.valueOf(CloudUtil.prop.getProperty("dist_host_cpu_num"));
             CloudUtil.dist_host_cpu_num_mu = Double.valueOf(prop.getProperty("dist_host_cpu_num_mu")).doubleValue();
             CloudUtil.host_cpu_num_min = Integer.valueOf(CloudUtil.prop.getProperty("host_cpu_num_min"));
             CloudUtil.host_cpu_num_max = Integer.valueOf(CloudUtil.prop.getProperty("host_cpu_num_max"));
-            System.out.println("#10 host_cpu_num_min"+":" +CloudUtil.host_cpu_num_min);
-            System.out.println("#11 host_cpu_num_max"+":" +CloudUtil.host_cpu_num_max);
+
 
             CloudUtil.host_core_num_foreachcpu_min = Integer.valueOf(CloudUtil.prop.getProperty("host_core_num_foreachcpu_min"));
             CloudUtil.host_core_num_foreachcpu_max = Integer.valueOf(CloudUtil.prop.getProperty("host_core_num_foreachcpu_max"));
-            System.out.println("#12 host_core_num_foreachcpu_min"+":" +CloudUtil.host_core_num_foreachcpu_min);
-            System.out.println("#13 host_core_num_foreachcpu_max"+":" +CloudUtil.host_core_num_foreachcpu_max);
-
 
             CloudUtil.host_thread_num_foreeachcore = Integer.valueOf(CloudUtil.prop.getProperty("host_thread_num_foreeachcore"));
             CloudUtil.vm_mem_min = Long.valueOf(CloudUtil.prop.getProperty("vm_mem_min"));
             CloudUtil.vm_mem_max = Long.valueOf(CloudUtil.prop.getProperty("vm_mem_max"));
-            System.out.println("#14 vm_mem_min"+":" +CloudUtil.vm_mem_min);
-            System.out.println("#15 vm_mem_max"+":" +CloudUtil.vm_mem_max);
+
 
             CloudUtil.dist_host_mips = Integer.valueOf(CloudUtil.prop.getProperty("dist_host_mips"));
             CloudUtil.dist_host_mips_mu = Double.valueOf(prop.getProperty("dist_host_mips_mu")).doubleValue();
             CloudUtil.host_mips_min = Long.valueOf(CloudUtil.prop.getProperty("host_mips_min"));
             CloudUtil.host_mips_max = Long.valueOf(CloudUtil.prop.getProperty("host_mips_max"));
-            System.out.println("#16 host_mips_min"+":" +CloudUtil.host_mips_min);
-            System.out.println("#17 host_mips_max"+":" +CloudUtil.host_mips_max);
 
             CloudUtil.core_mips_rate_min = Double.valueOf(prop.getProperty("core_mips_rate_min")).doubleValue();
             CloudUtil.core_mips_rate_max = Double.valueOf(prop.getProperty("core_mips_rate_max")).doubleValue();
-            System.out.println("#18 core_mips_rate_min"+":" +CloudUtil.core_mips_rate_min);
-            System.out.println("#19 core_mips_rate_max"+":" +CloudUtil.core_mips_rate_max);
+
 
             CloudUtil.dist_host_bw = Integer.valueOf(CloudUtil.prop.getProperty("dist_host_bw"));
             CloudUtil.dist_host_bw_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_host_bw_mu")).doubleValue();
             CloudUtil.dist_host_mips_mu = Double.valueOf(prop.getProperty("dist_host_bw_mu")).doubleValue();
             CloudUtil.host_bw_min = Long.valueOf(CloudUtil.prop.getProperty("host_bw_min"));
             CloudUtil.host_bw_max = Long.valueOf(CloudUtil.prop.getProperty("host_bw_max"));
-            System.out.println("#20 host_bw_min"+":" +CloudUtil.host_bw_min);
-            System.out.println("#21 host_bw_max"+":" +CloudUtil.host_bw_max);
+
+            System.out.println("#2 host_bw");
+            System.out.println("host_bw_min"+":" +CloudUtil.host_bw_min);
+            System.out.println("host_bw_max"+":" +CloudUtil.host_bw_max);
 
             CloudUtil.host_bw_random = Integer.valueOf(CloudUtil.prop.getProperty("host_bw_random"));
             CloudUtil.host_bw = Long.valueOf(CloudUtil.prop.getProperty("host_bw"));
-            System.out.println("#22 host_bw_random"+":" +CloudUtil.host_bw_random);
-            System.out.println("#23 host_bw"+":" +CloudUtil.host_bw);
+
 
             CloudUtil.vm_cpi = Integer.valueOf(CloudUtil.prop.getProperty("vm_cpi"));
 
@@ -431,8 +421,6 @@ public class CloudUtil {
             CloudUtil.dist_vm_vcpu_num_mu = Double.valueOf(prop.getProperty("dist_vm_vcpu_num_mu")).doubleValue();
             CloudUtil.vm_vcpu_num_min = Integer.valueOf(CloudUtil.prop.getProperty("vm_vcpu_num_min"));
             CloudUtil.vm_vcpu_num_max = Integer.valueOf(CloudUtil.prop.getProperty("vm_vcpu_num_max"));
-            System.out.println("#24 vm_vcpu_num_min"+":" +CloudUtil.vm_vcpu_num_min);
-            System.out.println("#25 vm_vcpu_num_max"+":" +CloudUtil.vm_vcpu_num_max);
 
             CloudUtil.mobile_device_num = Integer.valueOf(CloudUtil.prop.getProperty("mobile_device_num"));
             CloudUtil.mobile_device_core_num_min = Integer.valueOf(CloudUtil.prop.getProperty("mobile_device_core_num_min"));
@@ -465,7 +453,7 @@ public class CloudUtil {
 
             CloudUtil.rDataGen = new RandomDataImpl();
 
-            System.out.println("--------------------------------------------------------------------");
+            System.out.println("---------------------------parameters-----------------------------------------");
         } catch (Exception e) {
             e.printStackTrace();
         }

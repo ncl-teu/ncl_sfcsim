@@ -194,7 +194,7 @@ public class SFCGenerator {
                         NFVUtil.dist_multiple_sfc_vnf_num, NFVUtil.dist_multiple_sfc_vnf_num_mu);
                 //edit by SUN.
                 tasknum = 100;
-                System.out.println("tasknum:"+tasknum);
+                System.out.println("fixed tasknum:"+tasknum);
                 //System.exit(0);
                 //APLを生成して，シングルトンにセットする．
                 SFC childSFC = new SFC(-1, -1, -1, -1, -1, -1,

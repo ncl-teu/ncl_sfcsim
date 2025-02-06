@@ -20,14 +20,12 @@ public class KHEFTTest {
 
     public static void main(String[] args) {
         for (int i = 0; i < 1; i++) {
-            System.out.println("KHEFTTest------------------------------");
             //設定ファイルを取得
             String fileName = args[0];
             //Utilの初期化（設定ファイルの値の読み込み）
             //Network Function Virtualization初始化值
             //可以理解NFV就是一个task
             NFVUtil.getIns().initialize(fileName);
-            System.out.println("sun1");
 
             //SFCの生成
             //VNF集合の生成
@@ -66,7 +64,7 @@ public class KHEFTTest {
             NFVEnvironment env11 = (NFVEnvironment) env.deepCopy();
             NFVEnvironment env12 = (NFVEnvironment) env.deepCopy();
             NFVEnvironment env13 = (NFVEnvironment) env.deepCopy();
-            System.out.println("sun2");
+
             Iterator<VNF> vIte = sfc.getVnfMap().values().iterator();
             long totalSize = 0;
             while (vIte.hasNext()) {
