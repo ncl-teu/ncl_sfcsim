@@ -21,6 +21,7 @@ public class AHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        //System.out.println("AHEFT scheduleVNF");
         vnf.setTempName(getName());
         //edit by SUN.
         //System.out.println(getName() + " schedule.");
@@ -85,14 +86,18 @@ public class AHEFTAlgorithm extends HEFT_VNFAlgorithm {
                     ret_dTime = dTime;
                 }
             }
+            //System.out.println(ret_dTime);
         }
+
 
         //DLQueueにVNFを追加
         LinkedList<VNF> dlQueue = retCPU.getDlQueue();
         dlQueue.add(vnf);
         retCPU.setDlQueue(dlQueue);
 
+
         //edit by SUN
+        //record downloaded image type
         execDownloadPRO(vnf, retCPU);
         //showImageDict(vnf, retCPU);
 

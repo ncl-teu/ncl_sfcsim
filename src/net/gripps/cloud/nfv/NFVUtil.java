@@ -88,6 +88,9 @@ public class NFVUtil extends CloudUtil {
 
     public static int cloud_container_dl_mode;
 
+    public static int dl_from_r_count;
+    public static int dl_from_v_count;
+
 
     // public static double nfv_fairness_weight_rt;
 
@@ -144,6 +147,22 @@ public class NFVUtil extends CloudUtil {
         }
         cpuDLDelay.put(cpu, nt);
 
+    }
+
+    public static void setDlFromRCount() {
+        dl_from_r_count++;
+
+    }
+    public static void setDlFromVCount() {
+        dl_from_v_count++;
+    }
+
+    public static int getDlFromRCount() {
+        return dl_from_r_count;
+
+    }
+    public static int getDlFromVCount() {
+        return dl_from_v_count;
     }
 
     public static Double getCpuDLDelay(VCPU vcpu) {
@@ -206,6 +225,8 @@ public class NFVUtil extends CloudUtil {
     @Override
     public void initialize(String propName) {
         try {
+            NFVUtil.dl_from_r_count = 0;
+            NFVUtil.dl_from_v_count = 0;
             NFVUtil.vnf_image_dict = new HashMap<>();
             NFVUtil.vnfTypeKV = new HashMap<>();
             NFVUtil.cpuDLDelay = new HashMap<>();

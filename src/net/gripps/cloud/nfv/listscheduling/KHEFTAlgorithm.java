@@ -22,6 +22,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        //System.out.println("KHEFT scheduleVNF");
         vnf.setTempName(getName());
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
@@ -29,6 +30,7 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
         VCPU retCPU = null;
 
         Iterator<VCPU> cpuIte = map.values().iterator();
+        boolean isFirst = true;
         while (cpuIte.hasNext()) {
             VCPU cpu = cpuIte.next();
             //ESTを計算する
@@ -37,6 +39,17 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
             //DockerイメージのDLが必要かを判別する
             double dTime = this.calcDownloadImageTime(vnf, cpu);
             //System.out.println(dTime);
+            if (dTime == 0) {
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    //dTime = this.calcDownloadImageTime(vnf, cpu);
+                    //System.out.println(dTime);
+                    this.calcDownloadImageTime(vnf, cpu);
+                    //System.exit(111);
+                    continue;
+                }
+            }
             if (dTime == -1) {
                 continue;
             }
@@ -57,7 +70,8 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
                     retCPU = cpu;
                     ret_dTime = dTime;
                 }
-            } else if (dCompTime > est) {
+                //} else if (dCompTime > est) {
+            } else {
                 //double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 double DHEFT_fTime = dCompTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 if (DHEFT_fTime <= ret_finishtime) {
@@ -67,7 +81,9 @@ public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
                     ret_dTime = dTime;
                 }
             }
+            //System.out.println(ret_dTime);
         }
+
 
         //DLQueueにVNFを追加
         LinkedList<VNF> dlQueue = retCPU.getDlQueue();

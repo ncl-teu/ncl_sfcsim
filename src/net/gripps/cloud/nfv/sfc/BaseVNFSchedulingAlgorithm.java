@@ -395,23 +395,29 @@ public class BaseVNFSchedulingAlgorithm {
 
 
     public double calcDownloadImageTime(VNF vnf, VCPU vcpu) {
+        //System.out.println(111);
         VM vm = this.findVM(vcpu);
 
         if (vm == null) {
             return -1;
         }
         if (vm.containsType(vnf.getType())) {
+            //System.out.println(111);
             return 0.0d;
         } else {
-            //System.out.println(vnf.getTempName());
+            //download repo
+            double repo_download_time = this.calcImageComTime(vnf, vcpu);
+            //System.out.println("XX"+repo_download_time);
+
             if (vnf.getTempName() == "AHEFT") {
-                return this.calcImageComTimePRO(vnf, vcpu);
+                //try to download from repo
+                return this.calcImageComTimePRO(vnf, vcpu, repo_download_time);
             } else if (vnf.getTempName() == "AHEFTBEST") {
                 //Best Situation without download time. edit by Sun.
                 return 0.0d;
             } else {
-                //DHEFT and KHEFT
-                return this.calcImageComTime(vnf, vcpu);
+                //DHEFT and KHEFT use downlaod repo
+                return repo_download_time;
             }
         }
     }
@@ -487,7 +493,7 @@ public class BaseVNFSchedulingAlgorithm {
         NFVUtil.setImageDict(vnfType, vcpu);
     }
 
-    public double calcImageComTimePRO(VNF vnf, VCPU vcpu) {
+    public double calcImageComTimePRO(VNF vnf, VCPU vcpu, double repo_download_time) {
         //使用plus 做对比
         double plusT = calcImageComTimePLUS(vnf, vcpu);
         int vnfType = vnf.getType();
@@ -498,7 +504,7 @@ public class BaseVNFSchedulingAlgorithm {
         VCPU ALvcpu1 = vcpu;
         boolean dlFromCpu = false;
         if (vnfTypeMap.containsKey(vnfType)) {
-            dlFromCpu = true;
+
             ArrayList<VCPU> vcpuList = NFVUtil.getImageDictByImageType(vnfType);
 
             for (VCPU ALvcpu : vcpuList) {
@@ -508,10 +514,17 @@ public class BaseVNFSchedulingAlgorithm {
                     ALvcpu1 = ALvcpu;
                 }
             }
+            if (repo_download_time < t) {
+                t = repo_download_time;
+                dlFromCpu = false;
+            } else {
+                dlFromCpu = true;
+            }
             //NFVUtil.setImageDict(vnfType, vcpu);
         } else {
-            t = calcImageComTime(vnf, vcpu);
+            //t = calcImageComTime(vnf, vcpu);
             //NFVUtil.setImageDict(vnfType, vcpu);
+            t = repo_download_time;
         }
         double retT = NFVUtil.MAXValue;
         if (false) {
@@ -529,6 +542,9 @@ public class BaseVNFSchedulingAlgorithm {
             if (dlFromCpu) {
                 //如果是从别的cpu下载，那么必须给那个cpu加一个下载延迟。
                 NFVUtil.setCpuDLDelay(ALvcpu1, t);
+                NFVUtil.setDlFromVCount();
+            } else {
+                NFVUtil.setDlFromRCount();
             }
         }
 
@@ -630,6 +646,11 @@ public class BaseVNFSchedulingAlgorithm {
     public double calcImageComTime(VNF vnf, VCPU vcpu) {
         //System.out.println("XXXXXXXXX");
         long dataSize = vnf.getImageSize();
+
+        //edit by sun bug?
+        if (dataSize == 0) {
+            dataSize = NFVUtil.genLong(NFVUtil.vnf_image_size_min, NFVUtil.vnf_image_size_max);
+        }
         //DCの情報@vcpu側
         Long fromDCID = CloudUtil.getInstance().getDCID(vcpu.getPrefix());
         //DBの情報@リポジトリ
@@ -682,7 +703,14 @@ public class BaseVNFSchedulingAlgorithm {
         long realBW = Math.min(dcBW, hostBW);
 
         double time = CloudUtil.getRoundedValue((double) dataSize / (double) realBW);
-        //System.out.println("XXXX"+time);
+
+        if (dataSize == 0) {
+            System.out.println("XXXXdataSize" + dataSize);
+        }
+        //System.out.println("XXXXdataSize"+dataSize);
+        //System.out.println("XXXXrealBW"+realBW);
+        //System.out.println("XXXXtime"+time);
+
         return time;
 
     }

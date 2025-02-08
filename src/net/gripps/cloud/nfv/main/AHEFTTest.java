@@ -124,8 +124,9 @@ public class AHEFTTest {
             //transfer,download and excute
             DHEFTAlgorithm alg7 = new DHEFTAlgorithm(env7, sfc7);
             alg7.mainProcess();
+            double slr7 = alg7.getMakeSpan() / alg13.getMakeSpan();
             System.out.println("MakeSpan["+alg7.getName()+"]:" + alg7.getMakeSpan());
-            System.out.println("SLR[" + alg7.getName() + "]:" + alg7.getMakeSpan() / alg13.getMakeSpan());
+            System.out.println("SLR[" + alg7.getName() + "]:" + slr7);
             System.out.println("");
 
 
@@ -133,8 +134,9 @@ public class AHEFTTest {
             //transfer and download in parallel
             KHEFTAlgorithm alg9 = new KHEFTAlgorithm(env9, sfc9);
             alg9.mainProcess();
+            double slr9 = alg9.getMakeSpan() / alg13.getMakeSpan();
             System.out.println("MakeSpan["+alg9.getName()+"]:" + alg9.getMakeSpan());
-            System.out.println("SLR[" + alg9.getName() + "]:" + alg9.getMakeSpan() / alg13.getMakeSpan());
+            System.out.println("SLR[" + alg9.getName() + "]:" + slr9);
             System.out.println("");
 
             //AHEFT
@@ -142,9 +144,15 @@ public class AHEFTTest {
             AHEFTAlgorithm alg12 = new AHEFTAlgorithm(env12, sfc12);
             alg12.mainProcess();
             System.out.println("MakeSpan["+alg12.getName()+"]:" + alg12.getMakeSpan());
-            System.out.println("SLR[" + alg12.getName() + "]:" + alg12.getMakeSpan() / alg13.getMakeSpan());
+            double slr12 = alg12.getMakeSpan() / alg13.getMakeSpan();
+            System.out.println("SLR[" + alg12.getName() + "]:" + slr12);
             //System.out.print("SLR2[" + alg12.getName() + "]:" + NFVUtil.getRoundedValue(alg12.getMakeSpan() / alg12.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg12.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg12.getHostSet().size() + "\n");
-
+            System.out.println("");
+            System.out.println("reuse probability= "+(double)NFVUtil.getDlFromVCount()/(NFVUtil.getDlFromRCount()+NFVUtil.getDlFromVCount())*100+"%");
+            double a= (slr12-slr7)/slr7*100;
+            double b= (slr12-slr9)/slr9*100;
+            System.out.println("faster than DHEFT="+a+"%");
+            System.out.println("faster than KHEFT="+b+"%");
 
         }
     }

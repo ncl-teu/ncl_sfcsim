@@ -229,6 +229,7 @@ public class SFCGenerator {
                     }
                     //System.out.println(vnf.getType()+"AAA"+typeID+"AAA"+imageSize);
                     //乱数で決めたimageSizeをvnfにセットする
+                    //System.out.println("imageSize:"+imageSize);
                     vnf.setImageSize(imageSize);
 
 
