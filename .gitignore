@@ -8,3 +8,8 @@ classes/
 *.md
 !README.md
 !README_JP.md
+
+# Ignore properties files
+*.properties
+!nfv.properties
+
