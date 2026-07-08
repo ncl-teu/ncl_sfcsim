@@ -1,3 +1,18 @@
+
+# Whitelist
+/*
+!build.xml
+!compile.bat
+!fairnfv.bat
+!LICENSE
+!nfvrun.bat
+!nfvrun.sh
+!/lib/
+!/lib/**
+!/src/
+!/src/**
+!.gitignore
+
 .idea
 .DS_Store
 out/
