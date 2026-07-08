@@ -3,3 +3,8 @@
 out/
 classes/
 *.iml
+
+# Ignore md files except README README_JP
+*.md
+!README.md
+!README_JP.md
