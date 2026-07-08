@@ -73,6 +73,11 @@ public class Ideal_HEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
 
     }
 
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     public VNF selectVNF() {
         //Freeリストから選択する．
         long size = this.freeVNFSet.getList().size();

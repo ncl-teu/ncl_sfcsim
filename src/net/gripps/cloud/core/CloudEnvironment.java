@@ -15,9 +15,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class CloudEnvironment extends Environment implements Serializable, Cloneable {
 
 
+
     /**
      * データセンターのマップ
-     * 数据中心地图
      */
     protected HashMap<Long, Cloud> dcMap;
 
@@ -40,25 +40,26 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
     /**
      * コンストラクタ
      */
-    public CloudEnvironment() {
+    public CloudEnvironment(){
         this.dcLinkMatrix = new long[CloudUtil.num_dc][CloudUtil.num_dc];
 
-        // this.mobileMap = new HashMap<Long, MobileTerminal>();
+       // this.mobileMap = new HashMap<Long, MobileTerminal>();
         this.global_hostMap = new HashMap<String, ComputeHost>();
         this.global_cpuMap = new HashMap<String, CloudCPU>();
         this.global_coreMap = new HashMap<String, Core>();
         this.global_vmMap = new HashMap<String, VM>();
         this.global_vcpuMap = new HashMap<String, VCPU>();
-        this.dcMap = this.buildDCMap();
+        this.dcMap =  this.buildDCMap();
     }
+
+
 
 
     /**
      * 設定ファイルから，モバイル端末の情報を読み込みます．
-     *
      * @return
      */
-    public HashMap<Long, MobileTerminal> buildMobileMap() {
+    public HashMap<Long, MobileTerminal> buildMobileMap(){
         return null;
     }
 
@@ -68,41 +69,27 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
      *
      * @return
      */
-    public HashMap<Long, Cloud> buildDCMap() {
+    public  HashMap<Long, Cloud> buildDCMap(){
         HashMap<Long, Cloud> retMap = new HashMap<Long, Cloud>();
         //DC数だけのループ
-        System.out.println("CloudUtil.num_dc: " + CloudUtil.num_dc);
-        for (int i = 0; i < CloudUtil.num_dc; i++) {
+        for(int i = 0; i< CloudUtil.num_dc; i++){
             Cloud dc = new Cloud();
             dc.setId(new Long(i));
-            long dc_bw = 0;
-            //System.out.println("datacenter_externalbw_random: " + CloudUtil.datacenter_externalbw_random);
-            if (CloudUtil.datacenter_externalbw_random == 1) {
-                dc_bw = CloudUtil.genLong(CloudUtil.datacenter_externalbw_min, CloudUtil.datacenter_externalbw_max);
-            } else {
-                dc_bw = CloudUtil.datacenter_externalbw;
-            }
-            //System.out.println("buildDCMap dc_bw: " + CloudUtil.datacenter_externalbw);
+
+            long dc_bw= CloudUtil.genLong(CloudUtil.datacenter_externalbw_min, CloudUtil.datacenter_externalbw_max);
             dc.setBw(dc_bw);
             //ホスト数の生成
             long hostNum = CloudUtil.genLong(CloudUtil.host_num_foreachdc_min, CloudUtil.host_num_foreachdc_max);
-            //System.out.println("hostNum:" + hostNum);
+
             HashMap<Long, ComputeHost> hostMap = new HashMap<Long, ComputeHost>();
 
             //ホスト数分だけのループ
-            for (int j = 0; j < hostNum; j++) {
+            for(int j=0;j<hostNum;j++) {
                 //ComputeHostの生成
                 //CPUソケット数
                 int cpuNum = CloudUtil.genInt2(CloudUtil.host_cpu_num_min, CloudUtil.host_cpu_num_max, CloudUtil.dist_host_cpu_num, CloudUtil.dist_host_cpu_num_mu);
                 //帯域幅
-                long bw = 0;
-                if (CloudUtil.host_bw_random == 1) {
-                    bw = CloudUtil.genLong2(CloudUtil.host_bw_min, CloudUtil.host_bw_max, CloudUtil.dist_host_bw, CloudUtil.dist_host_bw_mu);
-                } else {
-                    bw = CloudUtil.host_bw;
-                }
-                //edit by sun host bw
-                //System.out.println("host bw: " + bw);
+                long bw = CloudUtil.genLong2(CloudUtil.host_bw_min, CloudUtil.host_bw_max, CloudUtil.dist_host_bw, CloudUtil.dist_host_bw_mu);
                 TreeMap<Long, CPU> cpuMap = new TreeMap<Long, CPU>();
                 LinkedBlockingQueue<VCPU> vQueue = new LinkedBlockingQueue<VCPU>();
                 boolean isMoreVM = true;
@@ -115,12 +102,12 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                     HashMap<Long, Core> coreMap = new HashMap<Long, Core>();
 
                     //コア数分だけのループ
-                    for (int l = 0; l < coreNum; l++) {
+                    for(int l=0;l < coreNum;l++){
                         double rate = Math.min(1.0, CloudUtil.genDouble(CloudUtil.core_mips_rate_min, CloudUtil.core_mips_rate_max));
                         HashMap<Long, VCPU> vcpuMap = new HashMap<Long, VCPU>();
                         String corePrefix = i + CloudUtil.DELIMITER + j + CloudUtil.DELIMITER + k + CloudUtil.DELIMITER + l;
                         //VCPUを生成．
-                        for (int m = 0; m < CloudUtil.host_thread_num_foreeachcore; m++) {
+                        for(int m = 0; m< CloudUtil.host_thread_num_foreeachcore; m++){
                             String prefix = i + CloudUtil.DELIMITER + j + CloudUtil.DELIMITER + k + CloudUtil.DELIMITER + l + CloudUtil.DELIMITER + m;
                             HashMap<String, Long> pMap = new HashMap<String, Long>();
                             pMap.put(CloudUtil.ID_DC, new Long(i));
@@ -128,8 +115,8 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                             pMap.put(CloudUtil.ID_CPU, new Long(k));
                             pMap.put(CloudUtil.ID_CORE, new Long(l));
                             pMap.put(CloudUtil.ID_VCPU, new Long(m));
-                            //  String cPrefix = i + CloudUtil.DELIMITER + j + CloudUtil.DELIMITER + k + CloudUtil.DELIMITER + l;
-                            VCPU vcpu = new VCPU(prefix, corePrefix, pMap, null, (long) (mips * rate), 0);
+                          //  String cPrefix = i + CloudUtil.DELIMITER + j + CloudUtil.DELIMITER + k + CloudUtil.DELIMITER + l;
+                            VCPU vcpu = new VCPU(prefix, corePrefix,  pMap, null, (long)(mips*rate),  0);
                             vcpuMap.put(new Long(m), vcpu);
                             String id = vcpu.getPrefix();
                             vQueue.offer(vcpu);
@@ -148,10 +135,11 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                         pMap.put(CloudUtil.ID_CORE, new Long(l));
                         //コアの利用率上限値を設定する．
                         int maxUsage = NFVUtil.core_max_usage;
-                        Core c = new Core(corePrefix, CloudUtil.host_thread_num_foreeachcore, (long) (mips * rate), new Long(l), vcpuMap, maxUsage);
+                        Core c = new Core(corePrefix, CloudUtil.host_thread_num_foreeachcore, (long)(mips*rate), new Long(l),  vcpuMap, maxUsage);
                         c.setPrefixMap(pMap);
                         coreMap.put(c.getCoreID(), c);
                         this.global_coreMap.put(corePrefix, c);
+
 
 
                     }
@@ -164,7 +152,7 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                     pMap.put(CloudUtil.ID_CPU, new Long(k));
 
                     CloudCPU cpu = new CloudCPU(new Long(k), mips, new Vector(), new Vector(),
-                            mips, coreMap, cpuPrefix, pMap);
+                            mips, coreMap, cpuPrefix, pMap );
 
                     cpuMap.put(new Long(k), cpu);
                     this.global_cpuMap.put(cpuPrefix, cpu);
@@ -182,8 +170,8 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                 //次に，VM数分だけのループ
                 int vm_num = CloudUtil.genInt(CloudUtil.vm_num_foreachdc_min, CloudUtil.vm_num_foreachdc_max);
                 //HashMap<String, VM> vmMap = new HashMap<String, VM>();
-                for (int v = 0; v < vm_num; v++) {
-                    if (!isMoreVM) {
+                for(int v=0;v<vm_num;v++){
+                    if(!isMoreVM){
                         break;
                     }
                     //IDを生成．
@@ -192,14 +180,14 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                     long ramSize = CloudUtil.genLong(CloudUtil.vm_mem_min, CloudUtil.vm_mem_max);
                     int vcpu_num = CloudUtil.genInt2(CloudUtil.vm_vcpu_num_min, CloudUtil.vm_vcpu_num_max,
                             CloudUtil.dist_vm_vcpu_num, CloudUtil.dist_vm_vcpu_num_mu);
-                    //     VM vm  = new VM(vmPrefix, hostPrefix,  new HashMap<String, VCPU>(), ramSize, vmPrefix);
+               //     VM vm  = new VM(vmPrefix, hostPrefix,  new HashMap<String, VCPU>(), ramSize, vmPrefix);
                     HashMap<String, VCPU> vMap = new HashMap<String, VCPU>();
 
-                    int realLen = Math.min(vcpu_num, vQueue.size());
+                   int realLen = Math.min(vcpu_num, vQueue.size());
                     //int realLen = vcpu_num;
 
-                    for (int q = 0; q < realLen; q++) {
-                        if (vQueue.isEmpty()) {
+                    for(int q=0;q<realLen;q++){
+                        if(vQueue.isEmpty()){
                             isMoreVM = false;
                             break;
                         }
@@ -209,11 +197,11 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
                         vMap.put(takenVCPU.getPrefix(), takenVCPU);
 
                     }
-                    if (vMap.isEmpty()) {
+                    if(vMap.isEmpty()){
                         break;
                     }
-                    VM vm = new VM(vmPrefix, hostPrefix, vMap, ramSize, vmPrefix);
-                    if (vMap.isEmpty()) {
+                    VM vm  = new VM(vmPrefix, hostPrefix,  vMap, ramSize, vmPrefix);
+                    if(vMap.isEmpty()){
                         System.out.println("Empty!!");
                     }
                     //VMを，ホストへ追加する．
@@ -230,6 +218,9 @@ public class CloudEnvironment extends Environment implements Serializable, Clone
 
         return retMap;
     }
+
+
+
 
 
     public HashMap<Long, Cloud> getDcMap() {

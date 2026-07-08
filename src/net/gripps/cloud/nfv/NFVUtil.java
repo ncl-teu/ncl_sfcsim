@@ -1,15 +1,11 @@
 package net.gripps.cloud.nfv;
 
 import net.gripps.cloud.CloudUtil;
-import net.gripps.cloud.core.VCPU;
 import org.apache.commons.math.random.RandomDataImpl;
 
 import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Properties;
-import java.util.Set;
-import java.util.List;
+import java.util.Random;
 
 /**
  * Created by Hidehiro Kanemitsu on 2018/11/26.
@@ -21,7 +17,7 @@ public class NFVUtil extends CloudUtil {
 
     public static int VNF_TYPE_VSTART = 111;
 
-    public static int VNF_TYPE_VEND = 999;
+    public static int VNF_TYPE_VEND =  999;
 
     public static int dist_vnf_weight;
     public static double dist_vnf_weight_mu;
@@ -32,8 +28,8 @@ public class NFVUtil extends CloudUtil {
     public static double dist_vnf_datasize_mu;
 
     public static long sfc_vnf_num;
-    //   public static int sfc_vnf_indegree_min;
-    ///   public static int sfc_vnf_indegree_max;
+ //   public static int sfc_vnf_indegree_min;
+ ///   public static int sfc_vnf_indegree_max;
     public static int sfc_vnf_outdegree_min;
     public static int sfc_vnf_outdegree_max;
 
@@ -69,8 +65,8 @@ public class NFVUtil extends CloudUtil {
 
     public static double dist_vnf_usage_mu;
 
-    public static int vnf_type_max;
     public static int vnf_type_min;
+    public static int vnf_type_max;
 
     public static int sfc_multimode;
 
@@ -84,130 +80,21 @@ public class NFVUtil extends CloudUtil {
     public static long vnf_image_size_max;
 
     public static long repository_bw;
-    public static long repository_dc_bw;
 
     public static int cloud_container_dl_mode;
-
-    public static int dl_from_r_count;
-    public static int dl_from_v_count;
-
-
-    // public static double nfv_fairness_weight_rt;
-
-    //key:type v:cpu id set
-    //public static HashMap<Integer, Set<VCPU>> vnfTypeMap;
-    //
-    //public static HashMap<Integer, Set<VCPU>> getVnfTypeMap() {
-    //    return vnfTypeMap;
-    //}
-    //
-    //public static void setVnfTypeMap(int k, Set<VCPU> v) {
-    //    vnfTypeMap.put(k, v);
-    //}
+    // Optional debug flag for NHEFT verbose output (0: off, 1: on)
+    public static int debug_nheft = 0;
 
 
-    public static HashMap<Integer, ArrayList<ArrayList<Long>>> vnfTypeKV;
-
-    public static HashMap<Integer, ArrayList<ArrayList<Long>>> getVnfTypeKV() {
-        return vnfTypeKV;
-    }
-
-    public static void resetVnfTypeKV() {
-        vnfTypeKV.clear();
-    }
-
-    public static void setVnfTypeKV(Integer i, ArrayList<Long> kv) {
-        HashMap<Integer, ArrayList<ArrayList<Long>>> kvMap = getVnfTypeKV();
-        ArrayList<ArrayList<Long>> kvList = kvMap.get(i);
-        //判断key为imgType的内容有没有机器
-        if (kvList == null) {
-            kvList = new ArrayList<>();
-            kvList.add(kv);
-            kvMap.put(i, kvList);
-        } else {
-            if (!kvList.contains(kv)) {
-                kvList.add(kv);
-                kvMap.put(i, kvList);
-            }
-
-        }
-    }
-
-    //从这个cpu下载的话，这个cpu要延时
-    //每次用cup做运算的时候，先要计算这个延时
-    public static HashMap<VCPU, Double> cpuDLDelay;
-
-    public static void setCpuDLDelay(VCPU cpu, double t) {
-        double nt = 0;
-        if (cpuDLDelay.containsKey(cpu)) {
-            double ot = getCpuDLDelay(cpu);
-            nt = ot + t;
-        } else {
-            nt = t;
-        }
-        cpuDLDelay.put(cpu, nt);
-
-    }
-
-    public static void setDlFromRCount() {
-        dl_from_r_count++;
-
-    }
-    public static void setDlFromVCount() {
-        dl_from_v_count++;
-    }
-
-    public static int getDlFromRCount() {
-        return dl_from_r_count;
-
-    }
-    public static int getDlFromVCount() {
-        return dl_from_v_count;
-    }
-
-    public static Double getCpuDLDelay(VCPU vcpu) {
-        if (cpuDLDelay.containsKey(vcpu)) {
-            return cpuDLDelay.get(vcpu);
-        } else {
-            return 0.0;
-        }
-    }
-
-
-    public static HashMap<Integer, ArrayList<VCPU>> vnf_image_dict;
-
-    public static HashMap<Integer, ArrayList<VCPU>> getImageDict() {
-        return vnf_image_dict;
-    }
-
-    public static ArrayList<VCPU> getImageDictByImageType(int vnfType) {
-        ArrayList<VCPU> vcpuList = vnf_image_dict.get(vnfType);
-        return vcpuList;
-    }
-
-    public static void setImageDict(int vnfType, VCPU vcpu) {
-        ArrayList<VCPU> vcpuList = vnf_image_dict.get(vnfType);
-        if (vcpuList == null) {
-            vcpuList = new ArrayList<VCPU>();
-            vcpuList.add(vcpu);
-            vnf_image_dict.put(vnfType, vcpuList);
-        } else {
-            if (vcpuList.contains(vcpu)) {
-
-            } else {
-                vcpuList.add(vcpu);
-                vnf_image_dict.put(vnfType, vcpuList);
-            }
-        }
-    }
+   // public static double nfv_fairness_weight_rt;
 
 
     public static NFVUtil own;
 
-    public static NFVUtil getIns() {
-        if (NFVUtil.own == null) {
+    public static NFVUtil getIns(){
+        if(NFVUtil.own == null){
             NFVUtil.own = new NFVUtil();
-        } else {
+        }else{
 
         }
 
@@ -217,106 +104,96 @@ public class NFVUtil extends CloudUtil {
     /**
      * デフォルトコンストラクタ
      */
-    private NFVUtil() {
+    private NFVUtil(){
         NFVUtil.rDataGen = new RandomDataImpl();
 
     }
 
     @Override
     public void initialize(String propName) {
-        try {
-            NFVUtil.dl_from_r_count = 0;
-            NFVUtil.dl_from_v_count = 0;
-            NFVUtil.vnf_image_dict = new HashMap<>();
-            NFVUtil.vnfTypeKV = new HashMap<>();
-            NFVUtil.cpuDLDelay = new HashMap<>();
+        try{
             //設定情報
             NFVUtil.prop = new Properties();
             NFVUtil.prop.load(new FileInputStream(propName));
-
-            //固定参数
-            System.out.println("+++++++++++++++++++++++vnf parameters++++++++++++++++++++++++++++++");
-            NFVUtil.vnf_weight_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_min"));
-            NFVUtil.vnf_weight_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_weight_max"));
-            System.out.println("#1 vnf weight (impact CCR)");
-            System.out.println("vnf_weight_min: "+ NFVUtil.vnf_weight_min);
-            System.out.println("vnf_weight_max: "+ NFVUtil.vnf_weight_max);
-            System.out.println("");
-
-            NFVUtil.dist_vnf_weight = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight"));
-            NFVUtil.dist_vnf_weight_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_weight_mu"));
-
-            NFVUtil.vnf_datasize_min = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_min"));
-            NFVUtil.vnf_datasize_max = Long.valueOf(CloudUtil.prop.getProperty("vnf_datasize_max"));
-
-            NFVUtil.dist_vnf_datasize = Integer.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize"));
-            NFVUtil.dist_vnf_datasize_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_vnf_datasize_mu"));
-
-            NFVUtil.sfc_vnf_num = Long.valueOf(CloudUtil.prop.getProperty("sfc_vnf_num"));
-            System.out.println("#2 sfc_vnf_num: "+ NFVUtil.sfc_vnf_num);
-            System.out.println("");
-            // NFVUtil.sfc_vnf_indegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_min"));
-            // NFVUtil.sfc_vnf_indegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_max"));
-
-            NFVUtil.sfc_vnf_outdegree_min = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_min"));
-            NFVUtil.sfc_vnf_outdegree_max = Integer.valueOf(CloudUtil.prop.getProperty("sfc_vnf_outdegree_max"));
-
-            NFVUtil.multiple_sfc_num = Integer.valueOf(CloudUtil.prop.getProperty("multiple_sfc_num"));
-
-            NFVUtil.multiple_sfc_vnf_num_min = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_min"));
-            NFVUtil.multiple_sfc_vnf_num_max = Long.valueOf(CloudUtil.prop.getProperty("multiple_sfc_vnf_num_max"));
-
-            NFVUtil.dist_multiple_sfc_vnf_num = Integer.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num"));
-            NFVUtil.dist_multiple_sfc_vnf_num_mu = Double.valueOf(CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num_mu"));
-
+            NFVUtil.vnf_weight_min = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_min"));
+            NFVUtil.vnf_weight_max = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_max"));
+            NFVUtil.dist_vnf_weight = Integer.valueOf( CloudUtil.prop.getProperty("dist_vnf_weight"));
+            NFVUtil.dist_vnf_weight_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_vnf_weight_mu"));
+            NFVUtil.vnf_datasize_min = Long.valueOf( CloudUtil.prop.getProperty("vnf_datasize_min"));
+            NFVUtil.vnf_datasize_max = Long.valueOf( CloudUtil.prop.getProperty("vnf_datasize_max"));
+            NFVUtil.dist_vnf_datasize = Integer.valueOf( CloudUtil.prop.getProperty("dist_vnf_datasize"));
+            NFVUtil.dist_vnf_datasize_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_vnf_datasize_mu"));
+            NFVUtil.sfc_vnf_num = Long.valueOf( CloudUtil.prop.getProperty("sfc_vnf_num"));
+           // NFVUtil.sfc_vnf_indegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_min"));
+           // NFVUtil.sfc_vnf_indegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_indegree_max"));
+            NFVUtil.sfc_vnf_outdegree_min = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_outdegree_min"));
+            NFVUtil.sfc_vnf_outdegree_max = Integer.valueOf( CloudUtil.prop.getProperty("sfc_vnf_outdegree_max"));
+            NFVUtil.multiple_sfc_num = Integer.valueOf( CloudUtil.prop.getProperty("multiple_sfc_num"));
+            NFVUtil.multiple_sfc_vnf_num_min = Long.valueOf( CloudUtil.prop.getProperty("multiple_sfc_vnf_num_min"));
+            NFVUtil.multiple_sfc_vnf_num_max = Long.valueOf( CloudUtil.prop.getProperty("multiple_sfc_vnf_num_max"));
+            NFVUtil.dist_multiple_sfc_vnf_num = Integer.valueOf( CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num"));
+            NFVUtil.dist_multiple_sfc_vnf_num_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_multiple_sfc_vnf_num_mu"));
             NFVUtil.startNumRate = Double.valueOf(prop.getProperty("sfc_vnf_startnumrate")).doubleValue();
-
-            NFVUtil.depth_alpha = Integer.valueOf(prop.getProperty("sfc_vnf_deapthalpha")).intValue();
-
+            NFVUtil.depth_alpha =Integer.valueOf(prop.getProperty("sfc_vnf_deapthalpha")).intValue();
             NFVUtil.calcmode_level = Integer.valueOf(prop.getProperty("calcmode_level")).intValue();
-
-            NFVUtil.nfv_fairness_weight_overlap = Double.valueOf(CloudUtil.prop.getProperty("nfv_fairness_weight_overlap"));
-            // NFVUtil.nfv_fairness_weight_rt = Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_rt"));
+            NFVUtil.nfv_fairness_weight_overlap =  Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_overlap"));
+           // NFVUtil.nfv_fairness_weight_rt = Double.valueOf( CloudUtil.prop.getProperty("nfv_fairness_weight_rt"));
 
             NFVUtil.core_max_usage = Integer.valueOf(prop.getProperty("core_max_usage")).intValue();
+            NFVUtil.cloud_constrained_mode =  Integer.valueOf(prop.getProperty("cloud_constrained_mode")).intValue();
 
-
-            NFVUtil.cloud_constrained_mode = Integer.valueOf(prop.getProperty("cloud_constrained_mode")).intValue();
-
-            NFVUtil.vnf_usage_min = Integer.valueOf(prop.getProperty("vnf_usage_min")).intValue();
+            NFVUtil.vnf_usage_min =  Integer.valueOf(prop.getProperty("vnf_usage_min")).intValue();
             NFVUtil.vnf_usage_max = Integer.valueOf(prop.getProperty("vnf_usage_max")).intValue();
 
-            NFVUtil.dist_vnf_usage = Integer.valueOf(prop.getProperty("dist_vnf_usage")).intValue();
+            NFVUtil.dist_vnf_usage =  Integer.valueOf(prop.getProperty("dist_vnf_usage")).intValue();
             NFVUtil.dist_vnf_usage_mu = Double.valueOf(prop.getProperty("dist_vnf_usage_mu")).doubleValue();
-
             NFVUtil.cmwsl_sched_area = Integer.valueOf(prop.getProperty("cmwsl_sched_area")).intValue();
-
+            String typeMinStr = prop.getProperty("vnf_type_min");
+            if (typeMinStr == null || typeMinStr.trim().isEmpty()) {
+                NFVUtil.vnf_type_min = 1;
+            } else {
+                NFVUtil.vnf_type_min = Integer.valueOf(typeMinStr.trim()).intValue();
+            }
             NFVUtil.vnf_type_max = Integer.valueOf(prop.getProperty("vnf_type_max")).intValue();
-            NFVUtil.vnf_type_min = Integer.valueOf(prop.getProperty("vnf_type_min")).intValue();
+            // Keep type range valid even when properties are misconfigured.
+            if (NFVUtil.vnf_type_min < 1) {
+                NFVUtil.vnf_type_min = 1;
+            }
+            if (NFVUtil.vnf_type_max < 1) {
+                NFVUtil.vnf_type_max = 1;
+            }
+            if (NFVUtil.vnf_type_min > NFVUtil.vnf_type_max) {
+                int tmp = NFVUtil.vnf_type_min;
+                NFVUtil.vnf_type_min = NFVUtil.vnf_type_max;
+                NFVUtil.vnf_type_max = tmp;
+            }
             //NFVUtil.sfc_multimode =  Integer.valueOf(prop.getProperty("sfc_multimode")).intValue();
-            System.out.println("#3 vnf_type");
-            System.out.println("#3 vnf_type_min: "+ NFVUtil.vnf_type_min);
-            System.out.println("#3 vnf_type_max: "+ NFVUtil.vnf_type_max);
-            System.out.println("");
+
             //
             NFVUtil.vnf_image_size_min = Long.valueOf(prop.getProperty("vnf_image_size_min")).longValue();
             NFVUtil.vnf_image_size_max = Long.valueOf(prop.getProperty("vnf_image_size_max")).longValue();
-            System.out.println("#4 image size");
-            System.out.println("vnf_image_size_min: "+ NFVUtil.vnf_image_size_min);
-            System.out.println("vnf_image_size_max: "+ NFVUtil.vnf_image_size_max);
-            System.out.println("");
-
-
             NFVUtil.repository_bw = Long.valueOf(prop.getProperty("repository_bw")).longValue();
-            NFVUtil.repository_dc_bw = Long.valueOf(prop.getProperty("repository_dc_bw")).longValue();
-            System.out.println("#5 repository_bw: "+ NFVUtil.repository_bw);
-            System.out.println("");
-            System.out.println("#6 repository_dc_bw: "+ NFVUtil.repository_dc_bw);
 
             NFVUtil.cloud_container_dl_mode = Integer.valueOf(prop.getProperty("cloud_container_dl_mode")).intValue();
+            try{
+                String dbg = prop.getProperty("debug_nheft");
+                if(dbg != null && dbg.trim().length() > 0){
+                    NFVUtil.debug_nheft = Integer.valueOf(dbg.trim()).intValue();
+                }
+            }catch(Exception _e){
+                // ignore
+            }
 
-            System.out.println("+++++++++++++++++++++++vnf parameters++++++++++++++++++++++++++++++");
-        } catch (Exception e) {
+            // Optional global seed for reproducible SFC/environment generation.
+            String seedStr = prop.getProperty("random_seed");
+            if (seedStr != null && seedStr.trim().length() > 0) {
+                long seed = Long.valueOf(seedStr.trim());
+                CloudUtil.random_seed = seed;
+                CloudUtil.rDataGen.reSeed(seed);
+                CloudUtil.uniformRand = new Random(seed);
+            }
+
+        }catch(Exception e){
             e.printStackTrace();
         }
 

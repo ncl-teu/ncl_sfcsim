@@ -1,13 +1,16 @@
 package net.gripps.cloud.core;
 
 import net.gripps.cloud.CloudUtil;
+import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.environment.CPU;
 import net.gripps.environment.Machine;
+import net.gripps.cloud.nfv.sfc.VNF;
 
 import java.io.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.TreeMap;
 
 /**
@@ -45,6 +48,18 @@ public class VM /*extends Machine*/ implements Serializable {
 
     private HashSet<Integer> typeSet;
 
+    /**
+     * 镜像类型的“真正可用时刻”。
+     * 未完成下载的镜像只记录这里，不立刻当作 typeSet 已可用。
+     */
+    private HashMap<Integer, Double> imageReadyTimeMap;
+
+    /**
+     * VM単位の画像ダウンロードキュー。
+     * 同一VMからのダウンロードはこのキューで直列化する。
+     */
+    private LinkedList<VNF> dlQueue;
+
 
 
 
@@ -58,6 +73,9 @@ public class VM /*extends Machine*/ implements Serializable {
         this.orgVMID = orgVMID;
         this.ipAddr = null;
         this.typeSet = new HashSet<Integer>();
+        this.imageReadyTimeMap = new HashMap<Integer, Double>();
+        this.dlQueue = new LinkedList<VNF>();
+        this.dlQueue = new LinkedList<VNF>();
 
     }
 
@@ -128,6 +146,41 @@ public class VM /*extends Machine*/ implements Serializable {
 
     public boolean containsType(int type){
         return this.typeSet.contains(new Integer(type));
+    }
+
+    public void registerImageReadyTime(int type, double readyTime) {
+        Integer key = Integer.valueOf(type);
+        this.imageReadyTimeMap.put(key, Double.valueOf(readyTime));
+        if (readyTime <= 0.0d) {
+            this.typeSet.add(key);
+        }
+    }
+
+    public double getImageReadyTime(int type) {
+        Double ready = this.imageReadyTimeMap.get(Integer.valueOf(type));
+        if (ready == null) {
+            return NFVUtil.MAXValue;
+        }
+        return ready.doubleValue();
+    }
+
+    public LinkedList<VNF> getDlQueue() {
+        return dlQueue;
+    }
+
+    public void setDlQueue(LinkedList<VNF> dlQueue) {
+        this.dlQueue = dlQueue;
+    }
+
+    public void addDLQueue(VNF vnf) {
+        this.dlQueue.add(vnf);
+    }
+
+    public double getDlQueueFinishTime() {
+        if (this.dlQueue == null || this.dlQueue.isEmpty()) {
+            return 0.0d;
+        }
+        return this.dlQueue.getLast().getDlFinishTime();
     }
 
     /**

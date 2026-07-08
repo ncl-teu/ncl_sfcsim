@@ -77,6 +77,11 @@ public  abstract class AbstractVNFClusteringAlgorithm extends BaseVNFSchedulingA
 
     }
 
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     /**
      *
      * @param cluster

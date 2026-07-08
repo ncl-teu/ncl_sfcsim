@@ -2,8 +2,10 @@ package net.gripps.cloud.core;
 
 import net.gripps.environment.CPU;
 import net.gripps.environment.Machine;
+import net.gripps.cloud.nfv.sfc.VNF;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.TreeMap;
 
 /**
@@ -34,6 +36,12 @@ public class ComputeHost extends Machine {
      */
     private String ipAddr;
 
+    /**
+     * Docker repositoryなど，ホスト単位で直列化したいDL処理の待ち行列。
+     */
+    private LinkedList<VNF> dlQueue;
+
+
 
     public ComputeHost(long machineID,
                        TreeMap<Long, CPU> cpuMap,
@@ -41,15 +49,15 @@ public class ComputeHost extends Machine {
                        HashMap<String, VM> vmMap,
                        Long dcID,
                        String p,
-                       long bw) {
+                       long bw)
+    {
         super(machineID, cpuMap, num);
         this.vmMap = vmMap;
         this.dcID = dcID;
-        this.prefix = p;
-        //edit by sun bw
-        //System.out.println("ComputeHost bw: "+bw);
+        this.prefix =p;
         this.setBw(bw);
         this.ipAddr = null;
+        this.dlQueue = new LinkedList<VNF>();
 
     }
 
@@ -83,6 +91,25 @@ public class ComputeHost extends Machine {
 
     public void setIpAddr(String ipAddr) {
         this.ipAddr = ipAddr;
+    }
+
+    public LinkedList<VNF> getDlQueue() {
+        return dlQueue;
+    }
+
+    public void setDlQueue(LinkedList<VNF> dlQueue) {
+        this.dlQueue = dlQueue;
+    }
+
+    public void addDLQueue(VNF vnf) {
+        this.dlQueue.add(vnf);
+    }
+
+    public double getDlQueueFinishTime() {
+        if (this.dlQueue == null || this.dlQueue.isEmpty()) {
+            return 0.0d;
+        }
+        return this.dlQueue.getLast().getDlFinishTime();
     }
 }
 

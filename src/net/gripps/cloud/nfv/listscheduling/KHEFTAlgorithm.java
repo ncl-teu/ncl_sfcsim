@@ -5,99 +5,71 @@ import net.gripps.cloud.core.CloudEnvironment;
 import net.gripps.cloud.core.ComputeHost;
 import net.gripps.cloud.core.VCPU;
 import net.gripps.cloud.nfv.NFVUtil;
+import net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.concurrent.TimeUnit;
 
-
-public class KHEFTAlgorithm extends HEFT_VNFAlgorithm {
-    public KHEFTAlgorithm(CloudEnvironment env, SFC sfc) {
+public class KHEFTAlgorithm extends HEFT_VNFAlgorithm{
+    public KHEFTAlgorithm(CloudEnvironment env, SFC sfc){
         super(env, sfc);
-        setName("KHEFT");
     }
 
     @Override
-    public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
-        //System.out.println("KHEFT scheduleVNF");
-        vnf.setTempName(getName());
+            public  void  scheduleVNF(VNF vnf, HashMap<String,VCPU>map){
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
-        double ret_dTime = NFVUtil.MAXValue;
         VCPU retCPU = null;
 
         Iterator<VCPU> cpuIte = map.values().iterator();
-        boolean isFirst = true;
-        while (cpuIte.hasNext()) {
+        while(cpuIte.hasNext()){
             VCPU cpu = cpuIte.next();
             //ESTを計算する
             double est = this.calcEST(vnf, cpu);
+            //完了時刻を計算する
+            double fTime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
+            //VNFの完了時刻を最小にするVCPUを探す
+            if(fTime <= ret_finishtime){
+                ret_finishtime = fTime;
+                ret_starttime = est;
+                retCPU = cpu;
+            }
 
             //DockerイメージのDLが必要かを判別する
             double dTime = this.calcDownloadImageTime(vnf, cpu);
-            //System.out.println(dTime);
-            if (dTime == 0) {
-                if (isFirst) {
-                    isFirst = false;
-                } else {
-                    //dTime = this.calcDownloadImageTime(vnf, cpu);
-                    //System.out.println(dTime);
-                    this.calcDownloadImageTime(vnf, cpu);
-                    //System.exit(111);
-                    continue;
-                }
-            }
-            if (dTime == -1) {
+            if(dTime == -1){
                 continue;
             }
             //イメージのDL完了時刻:DLInfoから取得
             double dCompTime = this.getDLInfo(vnf, cpu).get("finish");
-            //System.out.println(dCompTime+"-"+est);
             //DL完了時刻がタスクの実行開始時刻に間に合うか判別
             //間に合う:DLを割り当て
             //間に合わない:DHEFTAlgorithmを使う
-
-            if (dCompTime <= est) {
-                //continue;
-                //完了時刻を計算する
-                double fTime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
-                if (fTime <= ret_finishtime) {
-                    ret_finishtime = fTime;
+            if(dCompTime <= est){
+                continue;
+            }else if(dCompTime > est){
+                double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
+                if(DHEFT_fTime <= ret_finishtime){
+                    ret_finishtime = DHEFT_fTime;
                     ret_starttime = est;
                     retCPU = cpu;
-                    ret_dTime = dTime;
-                }
-                //} else if (dCompTime > est) {
-            } else {
-                //double DHEFT_fTime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
-                double DHEFT_fTime = dCompTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
-                if (DHEFT_fTime <= ret_finishtime) {
-                    ret_finishtime = DHEFT_fTime;
-                    ret_starttime = dCompTime;
-                    retCPU = cpu;
-                    ret_dTime = dTime;
                 }
             }
-            //System.out.println(ret_dTime);
         }
-
 
         //DLQueueにVNFを追加
         LinkedList<VNF> dlQueue = retCPU.getDlQueue();
         dlQueue.add(vnf);
         retCPU.setDlQueue(dlQueue);
 
-        //System.out.println(ret_starttime + "|" + ret_finishtime + "|" + ret_starttime + "|" + retCPU.getPrefix().toString());
-
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
         vnf.setFinishTime(ret_finishtime);
         vnf.setEST(ret_starttime);
         vnf.setvCPUID(retCPU.getPrefix());
-        vnf.setDlFinishTime(ret_dTime);
 
         //retCPUにおいて，vnfを追加する
         this.addVNFQueue(retCPU, vnf);

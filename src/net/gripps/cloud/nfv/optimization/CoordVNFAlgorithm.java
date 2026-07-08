@@ -59,6 +59,11 @@ public class CoordVNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         return selectedVNF;
     }
 
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     /**
      * VNFの先行VNFが割り当てられているvcpuのうち，最も
      * @param vnf

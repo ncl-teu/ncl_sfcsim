@@ -5,6 +5,7 @@ import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
+import net.gripps.cloud.core.VCPU;
 
 import java.util.Iterator;
 
@@ -40,6 +41,11 @@ public class HEFTAlgorithm extends BaseVNFSchedulingAlgorithm {
         //this.scheduleVNF(selectedVNF, this.env.getGlobal_vcpuMap());
 
         return selectedVNF;
+    }
+
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
     }
 
     public void mainProcess() {

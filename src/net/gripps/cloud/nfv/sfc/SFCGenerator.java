@@ -3,7 +3,6 @@ package net.gripps.cloud.nfv.sfc;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.clustering.common.aplmodel.CustomIDSet;
 import net.gripps.clustering.common.aplmodel.DataDependence;
-import sun.lwawt.macosx.CSystemTray;
 
 import java.util.*;
 
@@ -150,19 +149,20 @@ public class SFCGenerator {
      *
      * @return
      */
+    //SFC就是日常我们所描述的类似于DAG的结构，包含了VNF和它们之间的依赖关系。这个方法的目的是生成多个SFC，并将它们合并成一个大的SFC，其中包含了一个虚拟的开始VNF和一个虚拟的结束VNF，以便于后续的调度算法能够处理这个大的SFC。
+
     public SFC multipleSFCProcess() {
         try {
             //仮想start/endを用意する．
-            //准备虚拟开始/结束。
+            //VNF的参数
             this.virtualStartVNF = new VNF(NFVUtil.VNF_TYPE_VSTART, 0, -1, -1, -1, null, 0);
             //通常，VNFは1から始まるが，0をセットする．
-            //vector是一个线程安全的数组
             Vector<Long> startIDVec = new Vector<Long>();
             startIDVec.add(new Long(1));
             startIDVec.add(new Long(0));
 
             //APLを生成して，シングルトンにセットする．
-            //生成APL并将其设置为单例。
+            //
             SFC orgSFC = new SFC(-1, -1, -1, -1, -1, -1,
                     -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
 
@@ -185,17 +185,10 @@ public class SFCGenerator {
 
             // this.virtualStartVNF.se
             //SFCたちを作る．
-            //创建 SFC
-            //multiple_sfc_num ==1
             for (int i = 0; i < NFVUtil.multiple_sfc_num; i++) {
                 //VNF数を決定．
-                //任务数
                 long tasknum = NFVUtil.genLong2(NFVUtil.multiple_sfc_vnf_num_min, NFVUtil.multiple_sfc_vnf_num_max,
                         NFVUtil.dist_multiple_sfc_vnf_num, NFVUtil.dist_multiple_sfc_vnf_num_mu);
-                //edit by SUN.
-                tasknum = 100;
-                System.out.println("fixed tasknum:"+tasknum);
-                //System.exit(0);
                 //APLを生成して，シングルトンにセットする．
                 SFC childSFC = new SFC(-1, -1, -1, -1, -1, -1,
                         -1, null, new HashMap<Long, VNF>(), new HashMap<Long, VNFCluster>(), new Long(1), -1, -1);
@@ -214,22 +207,16 @@ public class SFCGenerator {
 
 
 
-
+                    //VNFにimage sizeをセットする。
                     //乱数を決める
                     long imageSize = NFVUtil.genLong(NFVUtil.vnf_image_size_min,NFVUtil.vnf_image_size_max);
                     Long typeID = Long.valueOf(vnf.getType());
-                    //System.out.println("typeID:"+typeID);
-                    //System.out.println("imageSize:"+imageSize);
-
-                    //VNFにimage sizeをセットする。
                     if(this.typMap.containsKey(typeID)){
                         imageSize = this.typMap.get(typeID);
                     }else{
                         this.typMap.put(typeID, imageSize);
                     }
-                    //System.out.println(vnf.getType()+"AAA"+typeID+"AAA"+imageSize);
                     //乱数で決めたimageSizeをvnfにセットする
-                    //System.out.println("imageSize:"+imageSize);
                     vnf.setImageSize(imageSize);
 
 

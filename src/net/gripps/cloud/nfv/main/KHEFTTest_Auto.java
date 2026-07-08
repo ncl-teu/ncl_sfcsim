@@ -1,15 +1,21 @@
 package net.gripps.cloud.nfv.main;
 
 import net.gripps.cloud.CloudUtil;
+import net.gripps.cloud.core.VCPU;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
+import net.gripps.cloud.nfv.clustering.RandomVNFClusteringAlgorithm;
+import net.gripps.cloud.nfv.clustering.SF_CUVAlgorithm;
+import net.gripps.cloud.nfv.fairscheduling.RandomFairSchedulingAlgorithm;
 import net.gripps.cloud.nfv.listscheduling.*;
+import net.gripps.cloud.nfv.optimization.CoordVNFAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.SFCGenerator;
 import net.gripps.cloud.nfv.sfc.VNF;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -131,7 +137,6 @@ public class KHEFTTest_Auto {
         int roop = 100;
         //何回実行した平均を取るか
 
-
         List<Double>  SLR_HEFT= new ArrayList();
         List<Integer>  vCPUs_HEFT= new ArrayList();
         List<Integer>  Hosts_HEFT= new ArrayList();
@@ -171,7 +176,7 @@ public class KHEFTTest_Auto {
         List<Integer>  Hosts_KHEFT= new ArrayList();
 
         for(int i = 0; i < roop; i++) {
-            AHEFTAlgorithm alg9 = new AHEFTAlgorithm(env9, sfc9);
+            KHEFTAlgorithm alg9 = new KHEFTAlgorithm(env9, sfc9);
             alg9.mainProcess();
             SLR_KHEFT.add(NFVUtil.getRoundedValue(alg9.getMakeSpan() / alg9.getTotalCPProcTimeAtMaxSpeed()));
             vCPUs_KHEFT.add(alg9.getAssignedVCPUMap().size());

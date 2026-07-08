@@ -10,19 +10,14 @@ import net.gripps.cloud.nfv.sfc.VNF;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
+public class DHEFTAlgorithm extends HEFT_VNFAlgorithm{
 
     public DHEFTAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
-        setName("DHEFT");
     }
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
-        //System.out.println("DHEFT scheduleVNF");
-        vnf.setTempName(getName());
-        //edit by SUN.
-        //System.out.println(getName() + " schedule.");
         //super.scheduleVNF(vnf, map);
 
         //
@@ -30,52 +25,47 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
         double ret_starttime = NFVUtil.MAXValue;
 
         VCPU retCPU = null;
+        if (this.isTraceEnabled()) {
+            this.trace("[DHEFT-START]", "Scheduling " + this.formatVNF(vnf) + ", candidateVCPU=" + map.size());
+        }
         //VCPUのイテレータを取得
         Iterator<VCPU> cpuIte = map.values().iterator();
-        double dTime_temp = 0;
-        boolean isFirst = true;
         while (cpuIte.hasNext()) {
             VCPU cpu = cpuIte.next();
             //ESTを計算する．
             double est = this.calcEST(vnf, cpu);
-            double dTime = this.calcDownloadImageTime(vnf, cpu);
-            //System.out.println(dTime);
-            if (dTime == 0) {
-                if (isFirst) {
-                    isFirst = false;
-                } else {
-                    //System.out.println(111);
-                    continue;
-                }
-
-                //System.exit(111);
-            }
-            if (dTime == -1) {
+            double dTime = this.calcDownloadImageTime(vnf,cpu);
+            if(dTime == -1){
                 continue;
             }
-            // System.out.println("time:"+dTime);
+           // System.out.println("time:"+dTime);
             //完了時刻を計算する．
-
-            //I think bug. edit by SUN.
-            //est already include the download duretion. dTime.
-            //dTime = dTime+10;
             double ftime = est + dTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
-
-            //VNFの完了時刻を最小にするVCPUを探す．
-            //edit by SUN <= to <
-            if (ftime < ret_finishtime) {
-                //System.out.println(ftime + "<" + ret_finishtime);
-                ret_finishtime = ftime;
-                ret_starttime = est + dTime;
-                retCPU = cpu;
-                dTime_temp = dTime;
-
+            if (this.isTraceEnabled()) {
+                this.trace("[DHEFT-CAND]",
+                        this.formatVNF(vnf)
+                                + " -> " + this.formatVCPU(cpu)
+                                + ", est=" + est
+                                + ", dlTime=" + dTime
+                                + ", execTime=" + this.calcExecTime(vnf.getWorkLoad(), cpu)
+                                + ", finish=" + ftime);
             }
-            //System.out.println(dTime_temp);
+            //VNFの完了時刻を最小にするVCPUを探す．
+            if (ftime <= ret_finishtime) {
+                ret_finishtime = ftime;
+                ret_starttime = est;
+                retCPU = cpu;
+            }
         }
 
-        //System.out.println("AAA"+dTime_temp);
-        //System.out.println("setFinishTime" + ret_finishtime);
+        if (this.isTraceEnabled()) {
+            this.trace("[DHEFT-SELECT]",
+                    this.formatVNF(vnf)
+                            + " -> " + this.formatVCPU(retCPU)
+                            + ", start=" + ret_starttime
+                            + ", finish=" + ret_finishtime);
+        }
+
         //vnfの時刻を更新する．
         vnf.setStartTime(ret_starttime);
         vnf.setFinishTime(ret_finishtime);
@@ -86,8 +76,12 @@ public class DHEFTAlgorithm extends HEFT_VNFAlgorithm {
         // retCPU.getVnfQueue().add(vnf);
         this.addVNFQueue(retCPU, vnf);
         //VMを取得する。
-        this.env.getGlobal_vmMap().get(retCPU.getVMID()).getTypeSet().add(vnf.getType());
 
+        //原始方法
+        //this.env.getGlobal_vmMap().get(retCPU.getVMID()).getTypeSet().add(vnf.getType());
+        // ★ 调用父类的方法标记镜像类型
+        //by SUN
+        this.markImageTypeForVM(vnf, retCPU);
 
         double ct = this.calcCT(retCPU);
 

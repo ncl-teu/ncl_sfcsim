@@ -288,7 +288,10 @@ public class PEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
 
     }
 
-
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
 
     public void mainProcess(){
         this.constructOCT();

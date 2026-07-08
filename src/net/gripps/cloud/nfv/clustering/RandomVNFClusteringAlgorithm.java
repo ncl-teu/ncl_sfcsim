@@ -49,9 +49,9 @@ public class RandomVNFClusteringAlgorithm extends AbstractVNFClusteringAlgorithm
         this.UEXClusterSet.remove(cluster.getClusterID());
 
         //clusterをランダムで選ばれたvcpuへ割り当てる．
-        long vlen = this.env.getGlobal_vcpuMap().size();
+        long vlen = this.vcpuMap.size();
         long loc = NFVUtil.genLong(0, vlen - 1);
-        Iterator<VCPU> vIte = this.env.getGlobal_vcpuMap().values().iterator();
+        Iterator<VCPU> vIte = this.vcpuMap.values().iterator();
         long idx2 = 0;
         VCPU retvcpu = null;
         while(vIte.hasNext()){

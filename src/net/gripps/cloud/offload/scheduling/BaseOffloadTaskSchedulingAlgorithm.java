@@ -85,6 +85,11 @@ public class BaseOffloadTaskSchedulingAlgorithm extends BaseVNFSchedulingAlgorit
      * トータルとしての実際の電力消費量を求めます．
      * @return
      */
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     public double calcTotalActualEnergy(){
         Iterator<MobileTerminal> mIte = this.env.getMobileMap().values().iterator();
         double val = 0.0d;

@@ -106,7 +106,7 @@ public class HSFCGenerator extends SFCGenerator {
             weight = (long) Math.ceil(w * w_rate);
         }        //使用率を求める．
         int usage = NFVUtil.genInt2(NFVUtil.vnf_usage_min, NFVUtil.vnf_usage_max, NFVUtil.dist_vnf_usage, NFVUtil.dist_vnf_usage_mu);
-        int type = NFVUtil.genInt(1, NFVUtil.vnf_type_max);
+        int type = NFVUtil.genInt(NFVUtil.vnf_type_min, NFVUtil.vnf_type_max);
         VNF newVNF = new VNF(type, weight, -1, -1, -1, null, usage);
         return newVNF;
     }

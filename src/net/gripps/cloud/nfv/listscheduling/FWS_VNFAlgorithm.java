@@ -85,6 +85,11 @@ public class FWS_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
 
     }
 
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     public void mainProcess() {
         //未スケジュールなVNFが残っている間，行うループ
         while (!this.getUnScheduledVNFSet().isEmpty()) {

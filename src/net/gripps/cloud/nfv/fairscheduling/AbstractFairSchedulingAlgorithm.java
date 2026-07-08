@@ -75,6 +75,11 @@ public abstract class AbstractFairSchedulingAlgorithm extends BaseVNFSchedulingA
      */
     public abstract VNF selectVNF();
 
+    @Override
+    public double calcImageComTime(VNF vnf, VCPU vcpu) {
+        return this.calcImageComTimeDefault(vnf, vcpu);
+    }
+
     /**
      * 実際のメイン処理になります．
      * あくまで一例です．
