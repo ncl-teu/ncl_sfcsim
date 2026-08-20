@@ -85,6 +85,73 @@ public class NFVUtil extends CloudUtil {
     // Optional debug flag for NHEFT verbose output (0: off, 1: on)
     public static int debug_nheft = 0;
 
+    /**
+     * Default disables resource-aware vCPU reuse and preserves the original
+     * NHEFT policy, which always selects the candidate with minimum EFT.
+     */
+    public static final double DEFAULT_NHEFT_VCPU_EFT_TOLERANCE = 0.0d;
+
+    /**
+     * Relative EFT tolerance for preferring an already-used vCPU in NHEFT.
+     * For example, 0.03 allows an already-used vCPU whose EFT is at most 3%
+     * above the globally minimum EFT. A value of 0.0 keeps the original NHEFT
+     * selection behavior completely unchanged.
+     */
+    public static double nheft_vcpu_eft_tolerance = DEFAULT_NHEFT_VCPU_EFT_TOLERANCE;
+
+    /**
+     * Default keeps the legacy NHEFT behavior. When enabled, opening a new
+     * vCPU requires both earlier finish time and computation-time advantage
+     * over the best used vCPU.
+     */
+    public static final int DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_COMP_ADVANTAGE = 0;
+
+    /**
+     * 0: disabled. 1: enabled.
+     */
+    public static int nheft_vcpu_open_requires_comp_advantage =
+            DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_COMP_ADVANTAGE;
+
+    /**
+     * Default keeps the legacy NHEFT behavior. When enabled, opening a new
+     * vCPU requires data-ready-time advantage over the best used vCPU.
+     */
+    public static final int DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_DRT_ADVANTAGE = 0;
+
+    /**
+     * 0: disabled. 1: enabled.
+     */
+    public static int nheft_vcpu_open_requires_drt_advantage =
+            DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_DRT_ADVANTAGE;
+
+    /**
+     * Default keeps the legacy NHEFT behavior. When enabled, opening a new
+     * vCPU requires image-ready-time advantage over the best used vCPU.
+     */
+    public static final int DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_IRT_ADVANTAGE = 0;
+
+    /**
+     * 0: disabled. 1: enabled.
+     */
+    public static int nheft_vcpu_open_requires_irt_advantage =
+            DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_IRT_ADVANTAGE;
+
+    /**
+     * Gate-combination logic for enabled resource-opening advantages.
+     * 0: all enabled gates must hold.
+     * 1: any enabled gate may justify opening a new vCPU.
+     */
+    public static final int NHEFT_VCPU_OPEN_GATE_LOGIC_ALL = 0;
+    public static final int NHEFT_VCPU_OPEN_GATE_LOGIC_ANY = 1;
+    public static final int DEFAULT_NHEFT_VCPU_OPEN_GATE_LOGIC =
+            NHEFT_VCPU_OPEN_GATE_LOGIC_ALL;
+
+    /**
+     * Default keeps the current strict behavior.
+     */
+    public static int nheft_vcpu_open_gate_logic =
+            DEFAULT_NHEFT_VCPU_OPEN_GATE_LOGIC;
+
 
    // public static double nfv_fairness_weight_rt;
 
@@ -184,6 +251,43 @@ public class NFVUtil extends CloudUtil {
                 // ignore
             }
 
+            // Optional NHEFT resource-consolidation parameter. Reset the
+            // default on every initialization so a missing property never
+            // inherits a value loaded by an earlier experiment in this JVM.
+            NFVUtil.nheft_vcpu_eft_tolerance = NFVUtil.DEFAULT_NHEFT_VCPU_EFT_TOLERANCE;
+            String toleranceStr = prop.getProperty("nheft_vcpu_eft_tolerance");
+            if (toleranceStr != null && toleranceStr.trim().length() > 0) {
+                try {
+                    double tolerance = Double.valueOf(toleranceStr.trim()).doubleValue();
+                    if (Double.isNaN(tolerance) || Double.isInfinite(tolerance) || tolerance < 0.0d) {
+                        throw new NumberFormatException("not a finite non-negative ratio");
+                    }
+                    NFVUtil.nheft_vcpu_eft_tolerance = tolerance;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid nheft_vcpu_eft_tolerance='" + toleranceStr
+                            + "'; using default " + NFVUtil.DEFAULT_NHEFT_VCPU_EFT_TOLERANCE);
+                }
+            }
+
+            // Optional NHEFT resource-opening gates. These switches are off by
+            // default, so experiments without the properties keep old behavior.
+            NFVUtil.nheft_vcpu_open_requires_comp_advantage =
+                    parseZeroOneSwitch(
+                            "nheft_vcpu_open_requires_comp_advantage",
+                            NFVUtil.DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_COMP_ADVANTAGE);
+            NFVUtil.nheft_vcpu_open_requires_drt_advantage =
+                    parseZeroOneSwitch(
+                            "nheft_vcpu_open_requires_drt_advantage",
+                            NFVUtil.DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_DRT_ADVANTAGE);
+            NFVUtil.nheft_vcpu_open_requires_irt_advantage =
+                    parseZeroOneSwitch(
+                            "nheft_vcpu_open_requires_irt_advantage",
+                            NFVUtil.DEFAULT_NHEFT_VCPU_OPEN_REQUIRES_IRT_ADVANTAGE);
+            NFVUtil.nheft_vcpu_open_gate_logic =
+                    parseGateLogic(
+                            "nheft_vcpu_open_gate_logic",
+                            NFVUtil.DEFAULT_NHEFT_VCPU_OPEN_GATE_LOGIC);
+
             // Optional global seed for reproducible SFC/environment generation.
             String seedStr = prop.getProperty("random_seed");
             if (seedStr != null && seedStr.trim().length() > 0) {
@@ -198,5 +302,57 @@ public class NFVUtil extends CloudUtil {
         }
 
 
+    }
+
+    private static int parseZeroOneSwitch(String propName, int defaultValue) {
+        String rawValue = prop.getProperty(propName);
+        if (rawValue == null || rawValue.trim().length() == 0) {
+            return defaultValue;
+        }
+
+        String value = rawValue.trim();
+        try {
+            if ("true".equalsIgnoreCase(value)) {
+                return 1;
+            }
+            if ("false".equalsIgnoreCase(value)) {
+                return 0;
+            }
+            int flag = Integer.valueOf(value).intValue();
+            if (flag != 0 && flag != 1) {
+                throw new NumberFormatException("not 0 or 1");
+            }
+            return flag;
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid " + propName + "='" + rawValue
+                    + "'; using default " + defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private static int parseGateLogic(String propName, int defaultValue) {
+        String rawValue = prop.getProperty(propName);
+        if (rawValue == null || rawValue.trim().length() == 0) {
+            return defaultValue;
+        }
+
+        String value = rawValue.trim().toLowerCase();
+        if ("all".equals(value) || "and".equals(value) || "strict".equals(value) || "0".equals(value)) {
+            return NHEFT_VCPU_OPEN_GATE_LOGIC_ALL;
+        }
+        if ("any".equals(value) || "or".equals(value) || "relaxed".equals(value) || "1".equals(value)) {
+            return NHEFT_VCPU_OPEN_GATE_LOGIC_ANY;
+        }
+
+        System.err.println("Invalid " + propName + "='" + rawValue
+                + "'; using default " + describeNHEFTGateLogic(defaultValue));
+        return defaultValue;
+    }
+
+    public static String describeNHEFTGateLogic(int gateLogic) {
+        if (gateLogic == NHEFT_VCPU_OPEN_GATE_LOGIC_ANY) {
+            return "any";
+        }
+        return "all";
     }
 }

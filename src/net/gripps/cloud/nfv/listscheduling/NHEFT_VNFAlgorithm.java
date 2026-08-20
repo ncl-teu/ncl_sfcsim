@@ -94,8 +94,27 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
+        double ret_execTime = NFVUtil.MAXValue;
+        double retDRT = NFVUtil.MAXValue;
+        double retIRT = NFVUtil.MAXValue;
 
         VCPU retCPU = null;
+        double bestUsedFinishTime = NFVUtil.MAXValue;
+        double bestUsedStartTime = NFVUtil.MAXValue;
+        double bestUsedExecTime = NFVUtil.MAXValue;
+        double bestUsedDRT = NFVUtil.MAXValue;
+        double bestUsedIRT = NFVUtil.MAXValue;
+        VCPU bestUsedCPU = null;
+        // A zero tolerance intentionally bypasses the new policy so legacy
+        // properties reproduce the original NHEFT candidate-selection path.
+        boolean preferUsedVCPU = NFVUtil.nheft_vcpu_eft_tolerance > 0.0d;
+        boolean requireCompAdvantage = NFVUtil.nheft_vcpu_open_requires_comp_advantage == 1;
+        boolean requireDRTAdvantage = NFVUtil.nheft_vcpu_open_requires_drt_advantage == 1;
+        boolean requireIRTAdvantage = NFVUtil.nheft_vcpu_open_requires_irt_advantage == 1;
+        boolean anyGateMode =
+                NFVUtil.nheft_vcpu_open_gate_logic == NFVUtil.NHEFT_VCPU_OPEN_GATE_LOGIC_ANY;
+        boolean requireOpenGate = requireCompAdvantage || requireDRTAdvantage || requireIRTAdvantage;
+        boolean trackUsedVCPU = preferUsedVCPU || requireOpenGate;
         if (NFVUtil.debug_nheft == 1) {
             this.trace("[NHEFT-START]", "Scheduling " + this.formatVNF(vnf) + ", candidateVCPU=" + map.size());
         }
@@ -105,25 +124,110 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             if (cpu.getVMID() == null || this.env.getGlobal_vmMap().get(cpu.getVMID()) == null) {
                 continue;
             }
-            double est = this.calcEST(vnf, cpu);
-            double ftime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
+            CandidateTiming timing = this.evaluateCandidateTiming(
+                    vnf,
+                    cpu,
+                    requireDRTAdvantage,
+                    requireIRTAdvantage);
             if (NFVUtil.debug_nheft == 1) {
                 this.trace("[NHEFT-CAND]",
                         this.formatVNF(vnf)
                                 + " -> " + this.formatVCPU(cpu)
-                                + ", est=" + est
-                                + ", execTime=" + this.calcExecTime(vnf.getWorkLoad(), cpu)
-                                + ", finish=" + ftime);
+                                + ", est=" + timing.est
+                                + ", execTime=" + timing.execTime
+                                + ", drt=" + timing.drt
+                                + ", irt=" + timing.irt
+                                + ", finish=" + timing.finishTime);
             }
-            if (ftime <= ret_finishtime) {
-                ret_finishtime = ftime;
-                ret_starttime = est;
+            if (timing.finishTime <= ret_finishtime) {
+                ret_finishtime = timing.finishTime;
+                ret_starttime = timing.est;
+                ret_execTime = timing.execTime;
+                retDRT = timing.drt;
+                retIRT = timing.irt;
                 retCPU = cpu;
+            }
+            if (trackUsedVCPU
+                    && this.assignedVCPUMap.containsKey(cpu.getPrefix())
+                    && timing.finishTime <= bestUsedFinishTime) {
+                bestUsedFinishTime = timing.finishTime;
+                bestUsedStartTime = timing.est;
+                bestUsedExecTime = timing.execTime;
+                bestUsedDRT = timing.drt;
+                bestUsedIRT = timing.irt;
+                bestUsedCPU = cpu;
             }
         }
 
         if (retCPU == null) {
             throw new IllegalStateException("No VM-bound vCPU candidate found for VNF " + vnf.getIDVector().get(1));
+        }
+
+        if (preferUsedVCPU && bestUsedCPU != null) {
+            double allowedFinishTime = ret_finishtime
+                    * (1.0d + NFVUtil.nheft_vcpu_eft_tolerance);
+            if (bestUsedFinishTime <= allowedFinishTime + EPS) {
+                if (NFVUtil.debug_nheft == 1) {
+                    this.trace("[NHEFT-VCPU-REUSE]",
+                            this.formatVNF(vnf)
+                                    + " globalBest=" + this.formatVCPU(retCPU)
+                                    + ", globalBestFinish=" + ret_finishtime
+                                    + ", reused=" + this.formatVCPU(bestUsedCPU)
+                                    + ", reusedFinish=" + bestUsedFinishTime
+                                    + ", tolerance=" + NFVUtil.nheft_vcpu_eft_tolerance);
+                }
+                ret_finishtime = bestUsedFinishTime;
+                ret_starttime = bestUsedStartTime;
+                ret_execTime = bestUsedExecTime;
+                retDRT = bestUsedDRT;
+                retIRT = bestUsedIRT;
+                retCPU = bestUsedCPU;
+            }
+        }
+
+        if (requireOpenGate
+                && bestUsedCPU != null
+                && !this.assignedVCPUMap.containsKey(retCPU.getPrefix())
+                && !this.isNewVCPUOpeningAllowed(
+                ret_finishtime,
+                ret_execTime,
+                retDRT,
+                retIRT,
+                bestUsedFinishTime,
+                bestUsedExecTime,
+                bestUsedDRT,
+                bestUsedIRT,
+                requireCompAdvantage,
+                requireDRTAdvantage,
+                requireIRTAdvantage,
+                anyGateMode)) {
+            // Opening a new vCPU always requires earlier EFT. Optional gates add
+            // local advantages only when their config flags are enabled.
+            if (NFVUtil.debug_nheft == 1) {
+                this.trace("[NHEFT-OPEN-GATE]",
+                        this.formatVNF(vnf)
+                                + " newCandidate=" + this.formatVCPU(retCPU)
+                                + ", newFinish=" + ret_finishtime
+                                + ", newExecTime=" + ret_execTime
+                                + ", newDRT=" + retDRT
+                                + ", newIRT=" + retIRT
+                                + ", reused=" + this.formatVCPU(bestUsedCPU)
+                                + ", reusedFinish=" + bestUsedFinishTime
+                                + ", reusedExecTime=" + bestUsedExecTime
+                                + ", reusedDRT=" + bestUsedDRT
+                                + ", reusedIRT=" + bestUsedIRT
+                                + ", requireComp=" + requireCompAdvantage
+                                + ", requireDRT=" + requireDRTAdvantage
+                                + ", requireIRT=" + requireIRTAdvantage
+                                + ", gateLogic=" + NFVUtil.describeNHEFTGateLogic(
+                                NFVUtil.nheft_vcpu_open_gate_logic));
+            }
+            ret_finishtime = bestUsedFinishTime;
+            ret_starttime = bestUsedStartTime;
+            ret_execTime = bestUsedExecTime;
+            retDRT = bestUsedDRT;
+            retIRT = bestUsedIRT;
+            retCPU = bestUsedCPU;
         }
 
         if (NFVUtil.debug_nheft == 1) {
@@ -183,6 +287,69 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
         this.unScheduledVNFSet.remove(vnf.getIDVector().get(1));
         this.updateFreeList(vnf);
+    }
+
+    private CandidateTiming evaluateCandidateTiming(VNF vnf,
+                                                    VCPU cpu,
+                                                    boolean needsDRT,
+                                                    boolean needsIRT) {
+        CandidateTiming timing = new CandidateTiming();
+        timing.est = this.calcEST(vnf, cpu);
+        timing.execTime = this.calcExecTime(vnf.getWorkLoad(), cpu);
+        timing.finishTime = timing.est + timing.execTime;
+        timing.drt = needsDRT
+                ? this.getFiniteValue(this.calcDeadLine(vnf, cpu), "arrival_time")
+                : NFVUtil.MAXValue;
+        timing.irt = needsIRT
+                ? this.getFiniteValue(this.getDLInfo(vnf, cpu), "finish")
+                : NFVUtil.MAXValue;
+        return timing;
+    }
+
+    private boolean isNewVCPUOpeningAllowed(double newFinishTime,
+                                            double newExecTime,
+                                            double newDRT,
+                                            double newIRT,
+                                            double usedFinishTime,
+                                            double usedExecTime,
+                                            double usedDRT,
+                                            double usedIRT,
+                                            boolean requireCompAdvantage,
+                                            boolean requireDRTAdvantage,
+                                            boolean requireIRTAdvantage,
+                                            boolean anyGateMode) {
+        if (newFinishTime + EPS >= usedFinishTime) {
+            return false;
+        }
+
+        boolean hasExtraGate =
+                requireCompAdvantage || requireDRTAdvantage || requireIRTAdvantage;
+        if (!hasExtraGate) {
+            return true;
+        }
+
+        boolean compSatisfied = !requireCompAdvantage || newExecTime + EPS < usedExecTime;
+        boolean drtSatisfied = !requireDRTAdvantage || newDRT + EPS < usedDRT;
+        boolean irtSatisfied = !requireIRTAdvantage || newIRT + EPS < usedIRT;
+
+        if (anyGateMode) {
+            return (requireCompAdvantage && compSatisfied)
+                    || (requireDRTAdvantage && drtSatisfied)
+                    || (requireIRTAdvantage && irtSatisfied);
+        }
+
+        return compSatisfied && drtSatisfied && irtSatisfied;
+    }
+
+    private double getFiniteValue(HashMap<String, Double> valueMap, String key) {
+        if (valueMap == null) {
+            return NFVUtil.MAXValue;
+        }
+        Double value = valueMap.get(key);
+        if (value == null || Double.isNaN(value.doubleValue()) || Double.isInfinite(value.doubleValue())) {
+            return NFVUtil.MAXValue;
+        }
+        return value.doubleValue();
     }
 
     private DownloadPlan findBestPlan(VNF vnf, VCPU targetVCPU, boolean commit) {
@@ -863,6 +1030,14 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
     }
 
 
+
+    private static class CandidateTiming {
+        double est;
+        double finishTime;
+        double execTime;
+        double drt;
+        double irt;
+    }
 
     private static class DownloadPlan {
         // Absolute timeline fields for one selected source plan.

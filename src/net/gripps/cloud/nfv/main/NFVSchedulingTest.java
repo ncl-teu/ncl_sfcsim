@@ -15,8 +15,11 @@ import net.gripps.cloud.nfv.sfc.SFCGenerator;
 import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.clustering.common.aplmodel.DataDependence;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Properties;
 
 /**
  * Created by Hidehiro Kanemitsu on 2018/12/01.
@@ -63,7 +66,32 @@ public class NFVSchedulingTest {
                 + " / dl_mode=" + NFVUtil.cloud_container_dl_mode
                 + " / repository_bw=" + NFVUtil.repository_bw
                 + " / image_size_range=" + NFVUtil.vnf_image_size_min + "-" + NFVUtil.vnf_image_size_max
+                + " / nheft_vcpu_eft_tolerance=" + NFVUtil.nheft_vcpu_eft_tolerance
+                + " / nheft_vcpu_open_requires_comp_advantage="
+                + NFVUtil.nheft_vcpu_open_requires_comp_advantage
+                + " / nheft_vcpu_open_requires_drt_advantage="
+                + NFVUtil.nheft_vcpu_open_requires_drt_advantage
+                + " / nheft_vcpu_open_requires_irt_advantage="
+                + NFVUtil.nheft_vcpu_open_requires_irt_advantage
+                + " / nheft_vcpu_open_gate_logic="
+                + NFVUtil.describeNHEFTGateLogic(NFVUtil.nheft_vcpu_open_gate_logic)
                 + " / random_seed=" + CloudUtil.random_seed);
+        Properties experimentProps = loadPropertiesFile(fileName, "EXPERIMENT-CONFIG");
+        NHEFTModeConfig baselineNheftMode = new NHEFTModeConfig(
+                "NHEFT",
+                NFVUtil.nheft_vcpu_eft_tolerance,
+                NFVUtil.nheft_vcpu_open_requires_comp_advantage,
+                NFVUtil.nheft_vcpu_open_requires_drt_advantage,
+                NFVUtil.nheft_vcpu_open_requires_irt_advantage,
+                NFVUtil.nheft_vcpu_open_gate_logic
+        );
+        NHEFTModeConfig secondaryNheftMode = loadOptionalSecondaryNHEFTMode(experimentProps);
+        AlgorithmRunConfig algorithmRunConfig = loadAlgorithmRunConfig(experimentProps, secondaryNheftMode);
+        printNHEFTModeConfig("NHEFT-MODE1", baselineNheftMode);
+        if (secondaryNheftMode != null) {
+            printNHEFTModeConfig("NHEFT-MODE2", secondaryNheftMode);
+        }
+        printAlgorithmRunConfig(algorithmRunConfig, secondaryNheftMode);
         //By SUN
         //这里注释掉了，后面现用现生成。
         //NFVEnvironment env2 = (NFVEnvironment) env.deepCopy();
@@ -186,23 +214,25 @@ public class NFVSchedulingTest {
         alg2.mainProcess();
         System.out.println("makespan[RandomListSched]:"+alg2.getMakeSpan()+" / # of vCPUs: "+alg2.getAssignedVCPUMap().size() + "/ # of Hosts:"+alg2.getHostSet().size());
 */
-
-
-
-        //
-        SFC sfc6 = (SFC) sfc.deepCopy();
-        NFVEnvironment env6 = (NFVEnvironment) env.deepCopy();
-        HEFT_VNFAlgorithm heft = new HEFT_VNFAlgorithm(env6, sfc6);
-        heft.mainProcess();
-        System.out.println("[HEFT]----------");
-        System.out.println("[HEFT]makespan:"+heft.getMakeSpan());
-        System.out.println("[HEFT]SLR:" + NFVUtil.getRoundedValue(heft.getMakeSpan() / heft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + heft.getAssignedVCPUMap().size() + "/ # of Hosts:" + heft.getHostSet().size()
-                + "/# of Ins:" + heft.calcTotalFunctionInstanceNum());
-        long heftImageDlTotal = countActualImageDownloads(sfc6);
-        System.out.println("[HEFT]imageDL_total=" + heftImageDlTotal
-                + " / fromRepo=" + heftImageDlTotal
-                + " / fromHost=0");
-        heft.printCriticalPathSummary("HEFT");
+        HEFT_VNFAlgorithm heft = null;
+        SFC sfc6 = null;
+        NFVEnvironment env6 = null;
+        long heftImageDlTotal = 0L;
+        if (algorithmRunConfig.runHEFT) {
+            sfc6 = (SFC) sfc.deepCopy();
+            env6 = (NFVEnvironment) env.deepCopy();
+            heft = new HEFT_VNFAlgorithm(env6, sfc6);
+            heft.mainProcess();
+            System.out.println("[HEFT]----------");
+            System.out.println("[HEFT]makespan:"+heft.getMakeSpan());
+            System.out.println("[HEFT]SLR:" + NFVUtil.getRoundedValue(heft.getMakeSpan() / heft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + heft.getAssignedVCPUMap().size() + "/ # of Hosts:" + heft.getHostSet().size()
+                    + "/# of Ins:" + heft.calcTotalFunctionInstanceNum());
+            heftImageDlTotal = countActualImageDownloads(sfc6);
+            System.out.println("[HEFT]imageDL_total=" + heftImageDlTotal
+                    + " / fromRepo=" + heftImageDlTotal
+                    + " / fromHost=0");
+            heft.printCriticalPathSummary("HEFT");
+        }
 
 /*
         SFC sfc6d = (SFC) sfc.deepCopy();
@@ -214,39 +244,44 @@ public class NFVSchedulingTest {
         System.out.println("[HEFTD]SLR:" + NFVUtil.getRoundedValue(heftd.getMakeSpan() / heftd.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + heftd.getAssignedVCPUMap().size() + "/ # of Hosts:" + heftd.getHostSet().size()
                 + "/# of Ins:" + heftd.calcTotalFunctionInstanceNum());
 */
+        DHEFT_VNFAlgorithm dheft = null;
+        SFC sfc7 = null;
+        NFVEnvironment env7 = null;
+        if (algorithmRunConfig.runDHEFT) {
+            sfc7 = (SFC) sfc.deepCopy();
+            env7 = (NFVEnvironment) env.deepCopy();
+            dheft = new DHEFT_VNFAlgorithm(env7, sfc7);
+            dheft.mainProcess();
+            System.out.println("[DHEFT]----------");
+            System.out.println("[DHEFT]makespan:"+dheft.getMakeSpan());
+            System.out.println("[DHEFT]SLR:" + NFVUtil.getRoundedValue(dheft.getMakeSpan() / dheft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + dheft.getAssignedVCPUMap().size() + "/ # of Hosts:" + dheft.getHostSet().size()
+                    + "/# of Ins:" + dheft.calcTotalFunctionInstanceNum());
+            System.out.println("[DHEFT]imageDL_total=" + dheft.getImageDownloadTotalCount()
+                    + " / fromRepo=" + dheft.getImageDownloadFromRepoCount()
+                    + " / fromHost=" + dheft.getImageDownloadFromHostCount());
+            dheft.printCriticalPathSummary("DHEFT");
+        }
 
-
-        SFC sfc7 = (SFC) sfc.deepCopy();
-        NFVEnvironment env7 = (NFVEnvironment) env.deepCopy();
-        DHEFT_VNFAlgorithm dheft = new DHEFT_VNFAlgorithm(env7, sfc7);
-        dheft.mainProcess();
-        System.out.println("[DHEFT]----------");
-        System.out.println("[DHEFT]makespan:"+dheft.getMakeSpan());
-        System.out.println("[DHEFT]SLR:" + NFVUtil.getRoundedValue(dheft.getMakeSpan() / dheft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + dheft.getAssignedVCPUMap().size() + "/ # of Hosts:" + dheft.getHostSet().size()
-                + "/# of Ins:" + dheft.calcTotalFunctionInstanceNum());
-        System.out.println("[DHEFT]imageDL_total=" + dheft.getImageDownloadTotalCount()
-                + " / fromRepo=" + dheft.getImageDownloadFromRepoCount()
-                + " / fromHost=" + dheft.getImageDownloadFromHostCount());
-        dheft.printCriticalPathSummary("DHEFT");
-
-
-        SFC sfc8 = (SFC) sfc.deepCopy();
-        NFVEnvironment env8 = (NFVEnvironment) env.deepCopy();
-        NHEFT_VNFAlgorithm nheft = new NHEFT_VNFAlgorithm(env8, sfc8);
-        nheft.mainProcess();
-        System.out.println("[NHEFT]----------");
-        System.out.println("[NHEFT]makespan:"+nheft.getMakeSpan());
-        System.out.println("[NHEFT]SLR:" + NFVUtil.getRoundedValue(nheft.getMakeSpan() / nheft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + nheft.getAssignedVCPUMap().size() + "/ # of Hosts:" + nheft.getHostSet().size()
-                + "/# of Ins:" + nheft.calcTotalFunctionInstanceNum());
-        System.out.println("[NHEFT]imageDL_total=" + nheft.getImageDownloadTotalCount()
-                + " / fromRepo=" + nheft.getImageDownloadFromRepoCount()
-                + " / fromHost=" + nheft.getImageDownloadFromHostCount());
-        nheft.printCriticalPathSummary("NHEFT");
+        NHEFTRunResult baselineNheftRun = null;
+        if (algorithmRunConfig.runNHEFT) {
+            baselineNheftRun = runNHEFTMode(baselineNheftMode, sfc, env);
+        }
+        if (algorithmRunConfig.runNHEFTMode2) {
+            runNHEFTMode(secondaryNheftMode, sfc, env);
+            // Restore the default NHEFT knobs after the optional comparison mode
+            // so any later helper code still sees the baseline configuration.
+            setNHEFTMode(baselineNheftMode);
+        }
 
         if (dagExportEnabled) {
             try {
                 DAGMetadataExporter.ExportContext exportContext = DAGMetadataExporter.prepareExportContext(CloudUtil.random_seed);
                 Path copiedProperties = DAGMetadataExporter.copyPropertiesFile(fileName, exportContext);
+
+                if (heft == null || dheft == null || baselineNheftRun == null) {
+                    System.err.println("[DAG-EXPORT] skipped: HEFT, DHEFT, and NHEFT must all run when DAG export is enabled.");
+                    return;
+                }
 
                 DAGMetadataExporter.AlgorithmSnapshot heftSnapshot =
                         DAGMetadataExporter.buildAlgorithmSnapshot(
@@ -271,12 +306,12 @@ public class NFVSchedulingTest {
                 DAGMetadataExporter.AlgorithmSnapshot nheftSnapshot =
                         DAGMetadataExporter.buildAlgorithmSnapshot(
                                 "NHEFT",
-                                nheft,
-                                sfc8,
-                                env8,
-                                nheft.getImageDownloadTotalCount(),
-                                nheft.getImageDownloadFromRepoCount(),
-                                nheft.getImageDownloadFromHostCount()
+                                baselineNheftRun.algorithm,
+                                baselineNheftRun.sfc,
+                                baselineNheftRun.env,
+                                baselineNheftRun.algorithm.getImageDownloadTotalCount(),
+                                baselineNheftRun.algorithm.getImageDownloadFromRepoCount(),
+                                baselineNheftRun.algorithm.getImageDownloadFromHostCount()
                         );
 
                 DAGMetadataExporter.exportAll(
@@ -399,6 +434,150 @@ public class NFVSchedulingTest {
 
     }
 
+    private static NHEFTRunResult runNHEFTMode(NHEFTModeConfig modeConfig,
+                                               SFC baseSfc,
+                                               NFVEnvironment baseEnv) {
+        setNHEFTMode(modeConfig);
+        SFC modeSfc = (SFC) baseSfc.deepCopy();
+        NFVEnvironment modeEnv = (NFVEnvironment) baseEnv.deepCopy();
+        NHEFT_VNFAlgorithm algorithm = new NHEFT_VNFAlgorithm(modeEnv, modeSfc);
+        algorithm.mainProcess();
+
+        String label = modeConfig.label;
+        System.out.println("[" + label + "]----------");
+        System.out.println("[" + label + "]makespan:" + algorithm.getMakeSpan());
+        System.out.println("[" + label + "]SLR:"
+                + NFVUtil.getRoundedValue(algorithm.getMakeSpan() / algorithm.getTotalCPProcTimeAtMaxSpeed())
+                + " / # of vCPUs: " + algorithm.getAssignedVCPUMap().size()
+                + "/ # of Hosts:" + algorithm.getHostSet().size()
+                + "/# of Ins:" + algorithm.calcTotalFunctionInstanceNum());
+        System.out.println("[" + label + "]imageDL_total=" + algorithm.getImageDownloadTotalCount()
+                + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
+                + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
+        algorithm.printCriticalPathSummary(label);
+        return new NHEFTRunResult(label, modeSfc, modeEnv, algorithm);
+    }
+
+    private static void setNHEFTMode(NHEFTModeConfig modeConfig) {
+        NFVUtil.nheft_vcpu_eft_tolerance = modeConfig.tolerance;
+        NFVUtil.nheft_vcpu_open_requires_comp_advantage = modeConfig.requireCompAdvantage;
+        NFVUtil.nheft_vcpu_open_requires_drt_advantage = modeConfig.requireDRTAdvantage;
+        NFVUtil.nheft_vcpu_open_requires_irt_advantage = modeConfig.requireIRTAdvantage;
+        NFVUtil.nheft_vcpu_open_gate_logic = modeConfig.gateLogic;
+    }
+
+    private static void printNHEFTModeConfig(String tag, NHEFTModeConfig modeConfig) {
+        if (modeConfig == null) {
+            return;
+        }
+        System.out.println("[" + tag + "] label=" + modeConfig.label
+                + " / nheft_vcpu_eft_tolerance=" + modeConfig.tolerance
+                + " / nheft_vcpu_open_requires_comp_advantage=" + modeConfig.requireCompAdvantage
+                + " / nheft_vcpu_open_requires_drt_advantage=" + modeConfig.requireDRTAdvantage
+                + " / nheft_vcpu_open_requires_irt_advantage=" + modeConfig.requireIRTAdvantage
+                + " / nheft_vcpu_open_gate_logic="
+                + NFVUtil.describeNHEFTGateLogic(modeConfig.gateLogic));
+    }
+
+    private static Properties loadPropertiesFile(String propFilePath, String tag) {
+        Properties props = new Properties();
+        FileInputStream inputStream = null;
+        try {
+            inputStream = new FileInputStream(propFilePath);
+            props.load(inputStream);
+            return props;
+        } catch (IOException e) {
+            System.err.println("[" + tag + "] failed to load properties: " + e.getMessage());
+            return props;
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException ignore) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    private static NHEFTModeConfig loadOptionalSecondaryNHEFTMode(Properties props) {
+        if (props == null) {
+            return null;
+        }
+
+        boolean enabled = parseOptionalBooleanProperty(props, "nheft_mode2_enabled", false);
+        if (!enabled) {
+            return null;
+        }
+
+        String label = props.getProperty("nheft_mode2_label", "GHEFT").trim();
+        if (label.length() == 0) {
+            label = "GHEFT";
+        }
+
+        return new NHEFTModeConfig(
+                label,
+                parseOptionalDoubleProperty(
+                        props,
+                        "nheft_mode2_vcpu_eft_tolerance",
+                        NFVUtil.nheft_vcpu_eft_tolerance
+                ),
+                parseOptionalZeroOneProperty(
+                        props,
+                        "nheft_mode2_open_requires_comp_advantage",
+                        NFVUtil.nheft_vcpu_open_requires_comp_advantage
+                ),
+                parseOptionalZeroOneProperty(
+                        props,
+                        "nheft_mode2_open_requires_drt_advantage",
+                        NFVUtil.nheft_vcpu_open_requires_drt_advantage
+                ),
+                parseOptionalZeroOneProperty(
+                        props,
+                        "nheft_mode2_open_requires_irt_advantage",
+                        NFVUtil.nheft_vcpu_open_requires_irt_advantage
+                ),
+                parseOptionalGateLogicProperty(
+                        props,
+                        "nheft_mode2_open_gate_logic",
+                        NFVUtil.nheft_vcpu_open_gate_logic
+                )
+        );
+    }
+
+    private static AlgorithmRunConfig loadAlgorithmRunConfig(Properties props,
+                                                             NHEFTModeConfig secondaryNheftMode) {
+        boolean hasMode2 = (secondaryNheftMode != null);
+        boolean runHEFT = parseOptionalBooleanProperty(props, "run_heft", true);
+        boolean runDHEFT = parseOptionalBooleanProperty(props, "run_dheft", true);
+        boolean runNHEFT = parseOptionalBooleanProperty(props, "run_nheft", true);
+        boolean runNHEFTMode2 = parseOptionalBooleanProperty(props, "run_nheft_mode2", hasMode2);
+
+        if (!hasMode2 && runNHEFTMode2) {
+            System.err.println("[RUN-CONFIG] run_nheft_mode2=1 but nheft_mode2_enabled is OFF. "
+                    + "The secondary NHEFT mode will be skipped.");
+            runNHEFTMode2 = false;
+        }
+
+        return new AlgorithmRunConfig(
+                runHEFT,
+                runDHEFT,
+                runNHEFT,
+                runNHEFTMode2
+        );
+    }
+
+    private static void printAlgorithmRunConfig(AlgorithmRunConfig algorithmRunConfig,
+                                                NHEFTModeConfig secondaryNheftMode) {
+        String mode2Label = (secondaryNheftMode == null) ? "NHEFT-MODE2" : secondaryNheftMode.label;
+        System.out.println("[RUN-CONFIG]"
+                + " run_heft=" + (algorithmRunConfig.runHEFT ? 1 : 0)
+                + " / run_dheft=" + (algorithmRunConfig.runDHEFT ? 1 : 0)
+                + " / run_nheft=" + (algorithmRunConfig.runNHEFT ? 1 : 0)
+                + " / run_nheft_mode2=" + (algorithmRunConfig.runNHEFTMode2 ? 1 : 0)
+                + " (" + mode2Label + ")");
+    }
+
     private static boolean isDagExportEnabled(String[] args) {
         if (args == null || args.length < 2) {
             return false;
@@ -445,6 +624,94 @@ public class NFVSchedulingTest {
                 || "disable".equals(v) || "disabled".equals(v)) {
             return false;
         }
+        return defaultValue;
+    }
+
+    private static boolean parseOptionalBooleanProperty(Properties props,
+                                                        String key,
+                                                        boolean defaultValue) {
+        if (props == null) {
+            return defaultValue;
+        }
+        String rawValue = props.getProperty(key);
+        if (rawValue == null) {
+            return defaultValue;
+        }
+        return parseSwitchBoolean(rawValue, defaultValue);
+    }
+
+    private static double parseOptionalDoubleProperty(Properties props,
+                                                      String key,
+                                                      double defaultValue) {
+        if (props == null) {
+            return defaultValue;
+        }
+        String rawValue = props.getProperty(key);
+        if (rawValue == null || rawValue.trim().length() == 0) {
+            return defaultValue;
+        }
+        try {
+            double value = Double.valueOf(rawValue.trim()).doubleValue();
+            if (Double.isNaN(value) || Double.isInfinite(value) || value < 0.0d) {
+                throw new NumberFormatException("not a finite non-negative ratio");
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid " + key + "='" + rawValue
+                    + "'; using default " + defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private static int parseOptionalZeroOneProperty(Properties props,
+                                                    String key,
+                                                    int defaultValue) {
+        if (props == null) {
+            return defaultValue;
+        }
+        String rawValue = props.getProperty(key);
+        if (rawValue == null || rawValue.trim().length() == 0) {
+            return defaultValue;
+        }
+
+        String value = rawValue.trim();
+        try {
+            if ("true".equalsIgnoreCase(value)) {
+                return 1;
+            }
+            if ("false".equalsIgnoreCase(value)) {
+                return 0;
+            }
+            int flag = Integer.valueOf(value).intValue();
+            if (flag != 0 && flag != 1) {
+                throw new NumberFormatException("not 0 or 1");
+            }
+            return flag;
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid " + key + "='" + rawValue
+                    + "'; using default " + defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private static int parseOptionalGateLogicProperty(Properties props,
+                                                      String key,
+                                                      int defaultValue) {
+        String raw = props.getProperty(key);
+        if (raw == null) {
+            return defaultValue;
+        }
+        String value = raw.trim().toLowerCase();
+        if (value.length() == 0) {
+            return defaultValue;
+        }
+        if ("all".equals(value) || "and".equals(value) || "strict".equals(value) || "0".equals(value)) {
+            return NFVUtil.NHEFT_VCPU_OPEN_GATE_LOGIC_ALL;
+        }
+        if ("any".equals(value) || "or".equals(value) || "relaxed".equals(value) || "1".equals(value)) {
+            return NFVUtil.NHEFT_VCPU_OPEN_GATE_LOGIC_ANY;
+        }
+        System.err.println("[NHEFT-MODE2] invalid " + key + "=" + raw + ", fallback=" + defaultValue);
         return defaultValue;
     }
 
@@ -555,5 +822,62 @@ public class NFVSchedulingTest {
             return 0.0d;
         }
         return NFVUtil.getRoundedValue((double) validHostCount / reciprocalSum);
+    }
+
+    private static class NHEFTModeConfig {
+        private final String label;
+        private final double tolerance;
+        private final int requireCompAdvantage;
+        private final int requireDRTAdvantage;
+        private final int requireIRTAdvantage;
+        private final int gateLogic;
+
+        private NHEFTModeConfig(String label,
+                                double tolerance,
+                                int requireCompAdvantage,
+                                int requireDRTAdvantage,
+                                int requireIRTAdvantage,
+                                int gateLogic) {
+            this.label = label;
+            this.tolerance = tolerance;
+            this.requireCompAdvantage = requireCompAdvantage;
+            this.requireDRTAdvantage = requireDRTAdvantage;
+            this.requireIRTAdvantage = requireIRTAdvantage;
+            this.gateLogic = gateLogic;
+        }
+    }
+
+    private static class AlgorithmRunConfig {
+        private final boolean runHEFT;
+        private final boolean runDHEFT;
+        private final boolean runNHEFT;
+        private final boolean runNHEFTMode2;
+
+        private AlgorithmRunConfig(boolean runHEFT,
+                                   boolean runDHEFT,
+                                   boolean runNHEFT,
+                                   boolean runNHEFTMode2) {
+            this.runHEFT = runHEFT;
+            this.runDHEFT = runDHEFT;
+            this.runNHEFT = runNHEFT;
+            this.runNHEFTMode2 = runNHEFTMode2;
+        }
+    }
+
+    private static class NHEFTRunResult {
+        private final String label;
+        private final SFC sfc;
+        private final NFVEnvironment env;
+        private final NHEFT_VNFAlgorithm algorithm;
+
+        private NHEFTRunResult(String label,
+                               SFC sfc,
+                               NFVEnvironment env,
+                               NHEFT_VNFAlgorithm algorithm) {
+            this.label = label;
+            this.sfc = sfc;
+            this.env = env;
+            this.algorithm = algorithm;
+        }
     }
 }
