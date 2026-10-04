@@ -1015,7 +1015,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
      *
      * 指定VNFのESTを取得する．
      * constrainedモードがONならば，コアの利用率上限以内に収まる範囲で，割り当てられる箇所を探す．
-     * もしなければ，-1を返す．
+     * 空き区間に挿入できなければ，キュー末尾以降に割り当てる．
      *
      * @param vnf
      * @return
@@ -1027,6 +1027,9 @@ public abstract class BaseVNFSchedulingAlgorithm {
         //注意这里是时刻而不是时间。也就是说，dl_finish_time是当该VNF的镜像下载完成的时刻。
         dl_finish_time = this.getDLInfo(vnf, cpu).get("finish");
         arrival_time = this.calcDeadLine(vnf, cpu).get("arrival_time");
+        // Check the actual execution interval, not a DRT-only interval shifted
+        // afterwards by IRT: that shift can invalidate a previously fitting gap.
+        double ready_time = Math.max(arrival_time, dl_finish_time);
 
         //arrival_time(DRT) ~ 最後のFinishTimeまでの範囲で，task/cpu速度の時間が埋められる
         //箇所があるかどうかを調べる．
@@ -1045,7 +1048,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
                 VNF t2 = ((VNF) oa[i + 1]);
                 double start_time2 = t2.getStartTime();
                 double duration = start_time2 - finish_time;
-                double s_candidateTime = Math.max(finish_time, arrival_time);
+                double s_candidateTime = Math.max(finish_time, ready_time);
                 //当該タスクの終了時刻を計算する．
                 double ftime = s_candidateTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 //挿入可能な場合は，その候補の開始時刻を返す．
@@ -1071,17 +1074,17 @@ public abstract class BaseVNFSchedulingAlgorithm {
 
             }
             if (isInserted) {
-                return Math.max(dl_finish_time, ret_starttime);
+                return ret_starttime;
             } else {
                 //挿入できない場合は，ENDテクニックを行う．
                 //ENDテクニックであれば，過負荷とはならない．
                 VNF finTask = ((VNF) oa[len - 1]);
-                double end_starttime = Math.max(finTask.getStartTime() + this.calcExecTime(finTask.getWorkLoad(), cpu), arrival_time);
+                double end_starttime = Math.max(finTask.getStartTime() + this.calcExecTime(finTask.getWorkLoad(), cpu), ready_time);
                 double end_finishtime = end_starttime + this.calcExecTime(vnf.getWorkLoad(), cpu);
                 Core c = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
                 if (this.constrainedMode == 1) {
                     if (this.isAssignedInDuration(end_starttime, end_finishtime, c, cpu, vnf)) {
-                        return Math.max(dl_finish_time, end_starttime);
+                        return end_starttime;
                     } else {
                         //ENDテクニックでもだめなら，もう片方のVCPUが終わるまで．
                         Iterator<VCPU> vITe = c.getvCPUMap().values().iterator();
@@ -1094,11 +1097,11 @@ public abstract class BaseVNFSchedulingAlgorithm {
                             }
 
                         }
-                        return Math.max(dl_finish_time, ret_newstarttime);
+                        // Waiting for the core must not discard DRT or IRT.
+                        return Math.max(ready_time, ret_newstarttime);
                     }
                 } else {
-                    return Math.max(dl_finish_time,
-                            Math.max(finTask.getStartTime() + this.calcExecTime(finTask.getWorkLoad(), cpu), arrival_time));
+                    return end_starttime;
 
                 }
             }
@@ -1110,19 +1113,19 @@ public abstract class BaseVNFSchedulingAlgorithm {
             Core core = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
 
             //bakfillできる場合，
-            double assumedCT = arrival_time + this.calcExecTime(vnf.getWorkLoad(), cpu);
+            double assumedCT = ready_time + this.calcExecTime(vnf.getWorkLoad(), cpu);
             boolean flg = false;
             if (assumedCT <= currentST) {
                 if (this.constrainedMode == 1) {
                     //bakfillする．
-                    if (this.isAssignedInDuration(arrival_time, assumedCT, core, cpu, vnf)) {
-                        return Math.max(dl_finish_time, arrival_time);
+                    if (this.isAssignedInDuration(ready_time, assumedCT, core, cpu, vnf)) {
+                        return ready_time;
                     } else {
                         //currentCTと他vcpuのCTの大きい方を，開始時刻とする．
                         flg = true;
                     }
                 } else {
-                    return Math.max(dl_finish_time,arrival_time);
+                    return ready_time;
                 }
 
             } else {
@@ -1142,16 +1145,16 @@ public abstract class BaseVNFSchedulingAlgorithm {
 
                     }
                     // Respect predecessor arrival even when using fallback start selection.
-                    return Math.max(dl_finish_time, Math.max(ret_newstarttime, arrival_time));
+                    return Math.max(ready_time, ret_newstarttime);
 
                 } else {
                     // Respect predecessor arrival even when queue has only one existing entry.
-                    return Math.max(dl_finish_time, Math.max(currentCT, arrival_time));
+                    return Math.max(ready_time, currentCT);
                 }
             }
 
         }
-        return Math.max(dl_finish_time, arrival_time);
+        return ready_time;
 
 
     }

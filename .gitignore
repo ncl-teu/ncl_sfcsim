@@ -11,6 +11,8 @@
 !/lib/**
 !/src/
 !/src/**
+!/regression/
+!/regression/**
 !.gitignore
 
 .idea
@@ -27,4 +29,3 @@ classes/
 # Ignore properties files
 *.properties
 !nfv.properties
-

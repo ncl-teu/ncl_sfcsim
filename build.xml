@@ -78,6 +78,27 @@
     <tstamp />
     <jar jarfile="${dist}/gripps-${DSTAMP}.jar" basedir="${build}" />
   </target>
+  <target name="build_regression_tests" depends="init">
+    <mkdir dir="${tests}/regression" />
+    <javac srcdir="regression" destdir="${tests}/regression"
+           encoding="UTF-8" source="1.8" target="1.8" includeantruntime="false">
+      <classpath>
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </javac>
+  </target>
+  <target name="regression_tests" depends="build, build_regression_tests"
+          description="Check image/data readiness and execution-slot feasibility">
+    <java classname="net.gripps.cloud.nfv.regression.ExecutionSlotRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
+  </target>
   <target name="doc" depends="init">
     <javadoc destdir="${docsapi}" author="true" version="true" use="true" windowtitle="API for gripps" encoding="UTF-8">
       <fileset dir="${src}" defaultexcludes="yes">
@@ -164,4 +185,3 @@
         </jar>
     </target>
 </project>
-
