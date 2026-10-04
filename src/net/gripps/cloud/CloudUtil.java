@@ -217,8 +217,18 @@ public class CloudUtil {
     }
 
     public static double genDouble(double min, double max){
-        return CloudUtil.getRoundedValue(min + (uniformRand.nextDouble() * (max - min + 1)));
+        checkDoubleRange(min, max);
+        // Consume one draw even for a fixed range to preserve subsequent seeded inputs.
+        double value = min + (uniformRand.nextDouble() * (max - min));
+        return Math.max(min, Math.min(max, CloudUtil.getRoundedValue(value)));
 
+    }
+
+    private static void checkDoubleRange(double min, double max) {
+        if (!Double.isFinite(min) || !Double.isFinite(max) || min > max
+                || !Double.isFinite(max - min)) {
+            throw new IllegalArgumentException("Invalid double range: " + min + ", " + max);
+        }
     }
 
     public static long genLong(long min, long max) {
@@ -289,12 +299,13 @@ public class CloudUtil {
      * @return
      */
     public static double  genDouble2(double min, double max, int dist, double mu){
+        checkDoubleRange(min, max);
         if(min == max){
             return min;
         }
         if(dist== 0){
             //一様分布
-            return min + (uniformRand.nextDouble() * (max - min + 1));
+            return Math.max(min, Math.min(max, min + (uniformRand.nextDouble() * (max - min))));
 
         }else{
             //正規分布

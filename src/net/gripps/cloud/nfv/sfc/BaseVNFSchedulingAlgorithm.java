@@ -395,6 +395,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
      * @param map 割当先候補となるvCPUの集合．
      */
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        if (this.scheduleVirtualBoundary(vnf, map)) return;
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
 
@@ -416,6 +417,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
             double est = this.calcEST(vnf, cpu);
             //完了時刻を計算する．
             double ftime = est + this.calcExecTime(vnf.getWorkLoad(), cpu);
+            if (!Double.isFinite(ftime) || ftime >= NFVUtil.MAXValue) continue;
             if (this.isTraceEnabled()) {
                 this.trace("[BASE-CAND]",
                         this.formatVNF(vnf)
@@ -499,6 +501,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
      * @param vcpu 分配的 vCPU
      */
     protected void markImageTypeForVM(VNF vnf, VCPU vcpu) {
+        if (vnf.getImageSize() <= 0L) return;
         try {
             // 获取 vCPU 所属的 VM
             String vmID = vcpu.getVMID();
@@ -514,9 +517,6 @@ public abstract class BaseVNFSchedulingAlgorithm {
 
             // 记录镜像真正可用的时刻；下载完成前不要把它当成已经可复用的已完成状态。
             double readyTime = vnf.getDlFinishTime();
-            if (readyTime < 0.0d) {
-                readyTime = 0.0d;
-            }
             vm.registerImageReadyTime(vnf.getType(), readyTime);
             if (readyTime <= 0.0d) {
                 vm.getTypeSet().add(Integer.valueOf(vnf.getType()));
@@ -527,7 +527,7 @@ public abstract class BaseVNFSchedulingAlgorithm {
 
 
         } catch (Exception e) {
-            System.err.println("[警告] 标记镜像类型时出错: " + e.getMessage());
+            throw new IllegalStateException("Cannot register image readiness for " + this.formatVNF(vnf), e);
         }
 
     }
@@ -1021,142 +1021,85 @@ public abstract class BaseVNFSchedulingAlgorithm {
      * @return
      */
     protected double calcEST(VNF vnf, VCPU cpu) {
-        double arrival_time = 0;
-        double dl_finish_time = 0;
-        //vcpuの、ダウンロード開始時刻と完了時刻を計算する。
-        //注意这里是时刻而不是时间。也就是说，dl_finish_time是当该VNF的镜像下载完成的时刻。
-        dl_finish_time = this.getDLInfo(vnf, cpu).get("finish");
-        arrival_time = this.calcDeadLine(vnf, cpu).get("arrival_time");
-        // Check the actual execution interval, not a DRT-only interval shifted
-        // afterwards by IRT: that shift can invalidate a previously fitting gap.
-        double ready_time = Math.max(arrival_time, dl_finish_time);
+        if (cpu.getMips() <= 0L) return Double.POSITIVE_INFINITY;
+        double ready = Math.max(this.getDLInfo(vnf, cpu).get("finish"),
+                this.calcDeadLine(vnf, cpu).get("arrival_time"));
+        double execution = this.calcExecTime(vnf.getWorkLoad(), cpu);
+        if (!Double.isFinite(ready) || ready < 0 || ready >= NFVUtil.MAXValue
+                || !Double.isFinite(execution) || execution < 0) return Double.POSITIVE_INFINITY;
+        if (execution == 0.0d) return ready;
 
-        //arrival_time(DRT) ~ 最後のFinishTimeまでの範囲で，task/cpu速度の時間が埋められる
-        //箇所があるかどうかを調べる．
-        Object[] oa = cpu.getVnfQueue().toArray();
-        double ret_starttime = NFVUtil.MAXValue;
-
-        if (oa.length > 1) {
-            boolean isInserted = false;
-            //startTimeの小さい順にソート
-            Arrays.sort(oa, new StartTimeComparator());
-            int len = oa.length;
-            for (int i = 0; i < len - 1; i++) {
-                VNF t = ((VNF) oa[i]);
-                double finish_time = t.getStartTime() + this.calcExecTime(t.getWorkLoad(), cpu);
-                //次の要素の開始時刻を取得する．
-                VNF t2 = ((VNF) oa[i + 1]);
-                double start_time2 = t2.getStartTime();
-                double duration = start_time2 - finish_time;
-                double s_candidateTime = Math.max(finish_time, ready_time);
-                //当該タスクの終了時刻を計算する．
-                double ftime = s_candidateTime + this.calcExecTime(vnf.getWorkLoad(), cpu);
-                //挿入可能な場合は，その候補の開始時刻を返す．
-                if (ftime <= start_time2) {
-                    //s_candidateTime ~ fTimeの間の，利用率合計値の最大値を計算する．
-                    if (this.constrainedMode == 1) {
-                        Core core = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
-                        if (this.isAssignedInDuration(s_candidateTime, ftime, core, cpu, vnf)) {
-                            //割り当て可能なら，計算続行
-                            if (ret_starttime >= s_candidateTime) {
-                                ret_starttime = s_candidateTime;
-                                isInserted = true;
-                            }
-                        } else {
-                            //過負荷のために割り当て不能なら，continueする．
-                            continue;
-                        }
-                    }
-
-                } else {
-                    continue;
-                }
-
-            }
-            if (isInserted) {
-                return ret_starttime;
-            } else {
-                //挿入できない場合は，ENDテクニックを行う．
-                //ENDテクニックであれば，過負荷とはならない．
-                VNF finTask = ((VNF) oa[len - 1]);
-                double end_starttime = Math.max(finTask.getStartTime() + this.calcExecTime(finTask.getWorkLoad(), cpu), ready_time);
-                double end_finishtime = end_starttime + this.calcExecTime(vnf.getWorkLoad(), cpu);
-                Core c = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
-                if (this.constrainedMode == 1) {
-                    if (this.isAssignedInDuration(end_starttime, end_finishtime, c, cpu, vnf)) {
-                        return end_starttime;
-                    } else {
-                        //ENDテクニックでもだめなら，もう片方のVCPUが終わるまで．
-                        Iterator<VCPU> vITe = c.getvCPUMap().values().iterator();
-                        double ret_newstarttime = -1;
-                        while (vITe.hasNext()) {
-                            VCPU v = vITe.next();
-                            double CT = this.calcCT(v);
-                            if (CT >= ret_newstarttime) {
-                                ret_newstarttime = CT;
-                            }
-
-                        }
-                        // Waiting for the core must not discard DRT or IRT.
-                        return Math.max(ready_time, ret_newstarttime);
-                    }
-                } else {
-                    return end_starttime;
-
-                }
-            }
-
-        } else {
-
-            double currentST = this.calcST(cpu);
-            double currentCT = this.calcCT(cpu);
-            Core core = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
-
-            //bakfillできる場合，
-            double assumedCT = ready_time + this.calcExecTime(vnf.getWorkLoad(), cpu);
-            boolean flg = false;
-            if (assumedCT <= currentST) {
-                if (this.constrainedMode == 1) {
-                    //bakfillする．
-                    if (this.isAssignedInDuration(ready_time, assumedCT, core, cpu, vnf)) {
-                        return ready_time;
-                    } else {
-                        //currentCTと他vcpuのCTの大きい方を，開始時刻とする．
-                        flg = true;
-                    }
-                } else {
-                    return ready_time;
-                }
-
-            } else {
-                //currentCTと他vcpuのCTの大きい方を，開始時刻とする．
-                flg = true;
-            }
-            if (flg) {
-                if (this.constrainedMode == 1) {
-                    Iterator<VCPU> vITe = core.getvCPUMap().values().iterator();
-                    double ret_newstarttime = -1;
-                    while (vITe.hasNext()) {
-                        VCPU v = vITe.next();
-                        double CT = this.calcCT(v);
-                        if (CT >= ret_newstarttime) {
-                            ret_newstarttime = CT;
-                        }
-
-                    }
-                    // Respect predecessor arrival even when using fallback start selection.
-                    return Math.max(ready_time, ret_newstarttime);
-
-                } else {
-                    // Respect predecessor arrival even when queue has only one existing entry.
-                    return Math.max(ready_time, currentCT);
-                }
-            }
-
+        Object[] queue = cpu.getVnfQueue().toArray();
+        Arrays.sort(queue, new StartTimeComparator());
+        double gapStart = ready;
+        // Search the front, every internal gap, and the tail using the actual IRT/DRT-ready interval.
+        for (Object item : queue) {
+            VNF existing = (VNF) item;
+            if (existing.getFinishTime() <= existing.getStartTime()) continue;
+            double candidate = this.findCoreFeasibleStart(vnf, cpu, gapStart,
+                    existing.getStartTime(), execution);
+            if (Double.isFinite(candidate)) return candidate;
+            gapStart = Math.max(gapStart, existing.getFinishTime());
         }
-        return ready_time;
+        return this.findCoreFeasibleStart(vnf, cpu, gapStart, Double.POSITIVE_INFINITY, execution);
+    }
 
+    private double findCoreFeasibleStart(VNF vnf, VCPU cpu, double start, double gapEnd, double execution) {
+        if (!Double.isFinite(start + execution) || start + execution > gapEnd) return Double.POSITIVE_INFINITY;
+        if (this.constrainedMode != 1) return start;
+        Core core = this.env.getGlobal_coreMap().get(cpu.getCorePrefix());
+        if (core == null || core.getvCPUMap().isEmpty()) {
+            throw new IllegalStateException("Missing core for " + cpu.getPrefix());
+        }
+        if (this.isAssignedInDuration(start, start + execution, core, cpu, vnf)) return start;
+        // Availability can improve at sibling finish events; do not wait for unrelated later work.
+        TreeSet<Double> finishes = new TreeSet<Double>();
+        for (VCPU sibling : core.getvCPUMap().values()) {
+            if (sibling.getPrefix().equals(cpu.getPrefix())) continue;
+            for (VNF existing : sibling.getVnfQueue()) {
+                if (existing.getFinishTime() > start && existing.getFinishTime() + execution <= gapEnd) {
+                    finishes.add(existing.getFinishTime());
+                }
+            }
+        }
+        for (double candidate : finishes) {
+            if (this.isAssignedInDuration(candidate, candidate + execution, core, cpu, vnf)) return candidate;
+        }
+        return Double.POSITIVE_INFINITY;
+    }
 
+    public static boolean isVirtualBoundary(VNF vnf) {
+        return (vnf.getType() == NFVUtil.VNF_TYPE_VSTART || vnf.getType() == NFVUtil.VNF_TYPE_VEND)
+                && vnf.getWorkLoad() == 0L && vnf.getImageSize() == 0L && vnf.getUsage() == 0;
+    }
+
+    protected boolean scheduleVirtualBoundary(VNF vnf, HashMap<String, VCPU> candidates) {
+        if (!isVirtualBoundary(vnf)) return false;
+        VCPU selected = null;
+        double ready = Double.POSITIVE_INFINITY;
+        for (VCPU cpu : candidates.values()) {
+            if (cpu.getVMID() == null || !this.env.getGlobal_vmMap().containsKey(cpu.getVMID())) continue;
+            double arrival = this.calcDeadLine(vnf, cpu).get("arrival_time");
+            if (Double.isFinite(arrival) && arrival >= 0 && arrival < NFVUtil.MAXValue && arrival < ready) {
+                selected = cpu;
+                ready = arrival;
+            }
+        }
+        if (selected == null) throw new IllegalStateException("No resource for virtual DAG boundary");
+        // Keep dependency metadata, but zero-work bookkeeping must not activate or occupy a resource.
+        vnf.setvCPUID(selected.getPrefix());
+        vnf.setStartTime(ready);
+        vnf.setFinishTime(ready);
+        vnf.setEST(ready);
+        vnf.setDlStartTime(0.0d);
+        vnf.setDlFinishTime(0.0d);
+        this.unScheduledVNFSet.remove(vnf.getIDVector().get(1));
+        this.updateFreeList(vnf);
+        return true;
+    }
+
+    public void validateSchedule() {
+        SchedulingValidator.validate(this);
     }
 
 
@@ -1172,6 +1115,10 @@ public abstract class BaseVNFSchedulingAlgorithm {
      * @return
      */
     public boolean isAssignedInDuration(double start, double end, Core core, VCPU vcpu, VNF vnf) {
+        // A zero-duration task occupies no execution interval.
+        if (start == end) {
+            return true;
+        }
         //vcpu自体は，他にvnfが割り当てられないので，負荷としてはその値．
         long totalUsage = vnf.getUsage();
         long maxUsage = core.getMaxUsage();
@@ -1184,11 +1131,14 @@ public abstract class BaseVNFSchedulingAlgorithm {
                 continue;
             } else {
                 //異なるvcpuのときだけ計算する．
-                Iterator<VNF> vnfIte = vcpu.getVnfQueue().iterator();
+                // Account for this sibling, not the candidate vCPU's queue.
+                Iterator<VNF> vnfIte = v.getVnfQueue().iterator();
                 long maxVCPUUsage = 0;
                 while (vnfIte.hasNext()) {
                     VNF f = vnfIte.next();
-                    if ((f.getFinishTime() < start) || (f.getStartTime() > end)) {
+                    // Execution intervals are half-open: touching endpoints do not overlap.
+                    if (f.getFinishTime() <= f.getStartTime()
+                            || f.getFinishTime() <= start || f.getStartTime() >= end) {
                         //含まれない場合は無視．
                     } else {
                         if (maxVCPUUsage <= f.getUsage()) {

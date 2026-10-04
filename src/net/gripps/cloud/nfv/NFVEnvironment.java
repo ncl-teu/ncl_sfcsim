@@ -29,6 +29,11 @@ public class NFVEnvironment extends CloudEnvironment {
         super();
         //DataCenterのIDを決定
         Cloud cloud = this.getDcMap().get(new Long(0));
+        if (cloud == null || this.getDcMap().get(Long.valueOf(1L)) == null) {
+            // Preserve the existing repository placement; do not silently relocate it.
+            throw new IllegalStateException("NFV environment requires data centers 0 and 1 "
+                    + "because the Docker repository is located in data center 1.");
+        }
         int len = cloud.getComputeHostMap().size();
 
         String hostPrefix = 0 + CloudUtil.DELIMITER + len;

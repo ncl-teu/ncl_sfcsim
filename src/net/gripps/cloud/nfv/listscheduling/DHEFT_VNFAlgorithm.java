@@ -165,9 +165,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
             return null;
         }
 
-        double sourceBusyUntil = this.getHostQueueTail(srcHost);
-        double targetBusyUntil = this.getHostQueueTail(dstHost);
-        double start = Math.max(readyTime, Math.max(sourceBusyUntil, targetBusyUntil));
+        double start = readyTime;
         double duration;
         if (sourceVM.getVMID().equals(targetVM.getVMID())) {
             // Same VM: no transfer needed; only wait until image becomes ready.
@@ -178,6 +176,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
                 // Same physical host: treat as local access.
                 duration = 0.0d;
             } else {
+                start = Math.max(readyTime, Math.max(this.getHostQueueTail(srcHost), this.getHostQueueTail(dstHost)));
                 long dataSize = vnf.getImageSize();
                 long bw = Math.min(srcHost.getBw(), dstHost.getBw());
                 if (bw <= 0) {
@@ -236,6 +235,14 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
             return null;
         }
 
+        if (NFVUtil.cloud_container_dl_mode != 1 || vnf.getImageSize() <= 0L) {
+            DownloadPlan zero = new DownloadPlan();
+            zero.sourceVM = targetVM;
+            zero.sourceHost = this.findHostByVM(targetVM);
+            zero.targetHost = zero.sourceHost;
+            return zero;
+        }
+
         if (this.isTraceEnabled()) {
             this.trace("[DHEFT-DL-START]",
                     this.formatVNF(vnf)
@@ -243,7 +250,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         }
 
         double targetReadyTime = this.getImageReadyTimeOnVM(targetVM, vnf.getType());
-        if (targetReadyTime <= EPS) {
+        if (targetReadyTime == 0.0d) {
             DownloadPlan zero = new DownloadPlan();
             zero.sourceVM = targetVM;
             zero.fromRepo = false;
@@ -324,7 +331,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         }
 
         boolean foundProducer = false;
-        double readyTime = 0.0d;
+        double readyTime = NFVUtil.MAXValue;
         Iterator<VCPU> vmVcpuIte = vm.getvCPUMap().values().iterator();
         while (vmVcpuIte.hasNext()) {
             VCPU vmVcpu = vmVcpuIte.next();
@@ -336,10 +343,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
                 }
                 foundProducer = true;
                 double cachedReady = qVnf.getDlFinishTime();
-                if (cachedReady <= 0.0d) {
-                    cachedReady = qVnf.getFinishTime();
-                }
-                if (cachedReady > readyTime) {
+                if (cachedReady < readyTime) {
                     readyTime = cachedReady;
                 }
             }
@@ -383,6 +387,7 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
 
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        if (this.scheduleVirtualBoundary(vnf, map)) return;
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
 
@@ -399,11 +404,13 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
                 continue;
             }
             double est = this.calcEST(vnf, cpu);
+            if (!Double.isFinite(est)) continue;
             double dTime = this.calcDownloadImageTime(vnf, cpu);
             double execTime = this.calcExecTime(vnf.getWorkLoad(), cpu);
             //SUN 这个地方bug了，计算了两次dTime
             //double ftime = est + dTime + execTime;
             double ftime = est + execTime;
+            if (!Double.isFinite(ftime) || ftime >= NFVUtil.MAXValue) continue;
             if (this.isTraceEnabled()) {
                 this.trace("[DHEFT-CAND]",
                         this.formatVNF(vnf)

@@ -149,9 +149,17 @@ public class VM /*extends Machine*/ implements Serializable {
     }
 
     public void registerImageReadyTime(int type, double readyTime) {
+        if (!Double.isFinite(readyTime) || readyTime < 0.0d) {
+            throw new IllegalArgumentException("Invalid image ready time: " + readyTime);
+        }
         Integer key = Integer.valueOf(type);
-        this.imageReadyTimeMap.put(key, Double.valueOf(readyTime));
-        if (readyTime <= 0.0d) {
+        // With no eviction model, another reference cannot make a cached image later.
+        Double previous = this.imageReadyTimeMap.get(key);
+        double earliest = previous == null
+                ? (this.typeSet.contains(key) ? 0.0d : readyTime)
+                : Math.min(previous.doubleValue(), readyTime);
+        this.imageReadyTimeMap.put(key, Double.valueOf(earliest));
+        if (earliest == 0.0d) {
             this.typeSet.add(key);
         }
     }

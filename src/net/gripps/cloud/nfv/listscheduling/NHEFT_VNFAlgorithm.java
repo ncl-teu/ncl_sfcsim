@@ -15,6 +15,7 @@ import net.gripps.cloud.nfv.sfc.VNF;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Arrays;
 
 /**
  * NHEFT: DHEFT + bandwidth-aware concurrent image download.
@@ -26,8 +27,7 @@ import java.util.Map;
  */
 public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
-    // EPS: a tiny time offset used to avoid getting stuck on exact boundary timestamps.
-    // EPS：微小时间偏移，用于跨过边界时刻，避免在同一时间点反复判断导致死循环。
+    // Policy comparison tolerance; transfer simulation uses exact half-open boundaries.
     private static final double EPS = 0.000001d;
     // NHEFT policy: image download/share must be evaluated by dynamic bandwidth slots only.
 
@@ -59,6 +59,8 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
         VM vm = this.findVM(vcpu);
         if (vm == null) {
+            map.put("start", (double) NFVUtil.MAXValue);
+            map.put("finish", (double) NFVUtil.MAXValue);
             return map;
         }
 
@@ -66,6 +68,10 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         if (plan != null) {
             map.put("start", plan.startTime);
             map.put("finish", plan.finishTime);
+        } else {
+            // No source/path is not the same as an already available image.
+            map.put("start", (double) NFVUtil.MAXValue);
+            map.put("finish", (double) NFVUtil.MAXValue);
         }
         return map;
     }
@@ -81,7 +87,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
         DownloadPlan plan = this.findBestPlan(vnf, vcpu, false);
         if (plan == null) {
-            return this.calcImageComTimeFromRepo(vnf, vcpu);
+            return NFVUtil.MAXValue;
         }
         // Base getDLInfo() expects duration, not absolute finish time.
         return Math.max(0.0d, plan.finishTime - plan.startTime);
@@ -92,6 +98,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
      */
     @Override
     public void scheduleVNF(VNF vnf, HashMap<String, VCPU> map) {
+        if (this.scheduleVirtualBoundary(vnf, map)) return;
         double ret_finishtime = NFVUtil.MAXValue;
         double ret_starttime = NFVUtil.MAXValue;
         double ret_execTime = NFVUtil.MAXValue;
@@ -129,6 +136,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
                     cpu,
                     requireDRTAdvantage,
                     requireIRTAdvantage);
+            if (!Double.isFinite(timing.finishTime) || timing.finishTime >= NFVUtil.MAXValue) continue;
             if (NFVUtil.debug_nheft == 1) {
                 this.trace("[NHEFT-CAND]",
                         this.formatVNF(vnf)
@@ -160,7 +168,8 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         }
 
         if (retCPU == null) {
-            throw new IllegalStateException("No VM-bound vCPU candidate found for VNF " + vnf.getIDVector().get(1));
+            throw new IllegalStateException("No feasible VM-bound vCPU candidate for VNF "
+                    + vnf.getIDVector().get(1) + "; check image sources, readiness and core capacity.");
         }
 
         if (preferUsedVCPU && bestUsedCPU != null) {
@@ -239,32 +248,30 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         }
 
         DownloadPlan plan = this.findBestPlan(vnf, retCPU, true);
-        if (plan != null) {
-            vnf.setDlStartTime(plan.startTime);
-            vnf.setDlFinishTime(plan.finishTime);
-            boolean hasDownload = plan.finishTime > plan.startTime + EPS;
-            this.recordImageDownloadSource(vnf, hasDownload, plan.fromRepo, plan.sourceVM);
-            if (NFVUtil.debug_nheft == 1) {
-                System.out.println("[NHEFT-COMMIT] VNF=" + vnf.getIDVector().get(1)
-                        + " target=" + retCPU.getPrefix()
-                        + " dlStart=" + plan.startTime
-                        + " dlFinish=" + plan.finishTime
-                        + " fromRepo=" + plan.fromRepo
-                        + " dynamic=" + (plan.dynamicResult != null)
-                        + " sourceVM=" + (plan.sourceVM == null ? "null" : plan.sourceVM.getVMID()));
+        if (plan == null) {
+            throw new IllegalStateException("No feasible image plan for VNF "
+                    + vnf.getIDVector().get(1) + " on " + retCPU.getPrefix());
+        }
+        vnf.setDlStartTime(plan.startTime);
+        vnf.setDlFinishTime(plan.finishTime);
+        boolean hasDownload = plan.finishTime > plan.startTime + EPS;
+        this.recordImageDownloadSource(vnf, hasDownload, plan.fromRepo, plan.sourceVM);
+        if (NFVUtil.debug_nheft == 1) {
+            System.out.println("[NHEFT-COMMIT] VNF=" + vnf.getIDVector().get(1)
+                    + " target=" + retCPU.getPrefix()
+                    + " dlStart=" + plan.startTime
+                    + " dlFinish=" + plan.finishTime
+                    + " fromRepo=" + plan.fromRepo
+                    + " dynamic=" + (plan.dynamicResult != null)
+                    + " sourceVM=" + (plan.sourceVM == null ? "null" : plan.sourceVM.getVMID()));
+        }
+        if (plan.finishTime > plan.startTime) {
+            this.recordImageDownload(plan.fromRepo, plan.startTime, plan.finishTime);
+            if (plan.fromRepo) {
+                retCPU.addDLQueue(vnf);
+            } else if (plan.sourceVM != null) {
+                plan.sourceVM.addDLQueue(vnf);
             }
-            if (plan.finishTime > plan.startTime) {
-                this.recordImageDownload(plan.fromRepo, plan.startTime, plan.finishTime);
-                if (plan.fromRepo) {
-                    retCPU.addDLQueue(vnf);
-                } else if (plan.sourceVM != null) {
-                    plan.sourceVM.addDLQueue(vnf);
-                }
-            }
-        } else {
-            vnf.setDlStartTime(0.0d);
-            vnf.setDlFinishTime(0.0d);
-            this.recordImageDownloadSource(vnf, false, false, null);
         }
 
         vnf.setStartTime(ret_starttime);
@@ -364,7 +371,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             return null;
         }
 
-        if (vnf.getImageSize() <= 0L) {
+        if (NFVUtil.cloud_container_dl_mode != 1 || vnf.getImageSize() <= 0L) {
             // Zero-size image means no transfer is needed regardless of source choice.
             DownloadPlan zero = new DownloadPlan();
             zero.startTime = 0.0d;
@@ -375,7 +382,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         }
 
         double targetReady = this.getImageReadyTimeOnVM(targetVM, vnf.getType());
-        if (targetReady <= EPS) {
+        if (targetReady == 0.0d) {
             DownloadPlan zero = new DownloadPlan();
             zero.startTime = 0.0d;
             zero.finishTime = 0.0d;
@@ -439,6 +446,9 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         // Persist the selected dynamic reservation so later VNFs see real link occupancy.
         // 将选中的动态预留写回，确保后续VNF能够看到真实的链路占用。
         if (commit && best != null && best.dynamicResult != null) {
+            double transferred = best.dynamicResult.transferredBytes();
+            if (Math.abs(transferred - vnf.getImageSize()) > imageTransferByteTolerance(vnf.getImageSize()))
+                throw new IllegalStateException("Incomplete image transfer for VNF " + vnf.getIDVector().get(1));
             String taskId = this.makeTaskId(vnf, targetVCPU, best.fromRepo);
             this.commitDynamicReservation(taskId, best.dcSlot, best.hostSlot, best.dynamicResult);
         } else if (commit && best != null) {
@@ -785,10 +795,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
                 }
                 foundProducer = true;
                 double cachedReady = qVnf.getDlFinishTime();
-                if (cachedReady <= 0.0d) {
-                    cachedReady = qVnf.getFinishTime();
-                }
-                if (cachedReady <= EPS) {
+                if (cachedReady == 0.0d) {
                     return 0.0d;
                 }
                 if (cachedReady < readyTime) {
@@ -818,7 +825,7 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         // Scan timeline to find the first time point with strictly positive available BW.
         // 扫描时间轴，找到“可用带宽>0”的最早时刻作为下载起点候选。
         double t = Math.max(0.0d, fromTime);
-        for (int i = 0; i < 1024; i++) {
+        while (true) {
             long dcAvail = (dcSlot == null) ? NFVUtil.MAXValue : dcSlot.getAvailableBWAt(t);
             long hostAvail = (hostSlot == null) ? NFVUtil.MAXValue : hostSlot.getAvailableBWAt(t);
             if (Math.min(dcAvail, hostAvail) > 0) {
@@ -829,11 +836,10 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             double nextHost = (hostSlot == null) ? Double.MAX_VALUE : hostSlot.getNextChangeTime(t);
             double next = Math.min(nextDc, nextHost);
             if (next == Double.MAX_VALUE) {
-                return t;
+                throw new IllegalStateException("No positive bandwidth available after " + t);
             }
-            t = next + EPS;
+            t = next;
         }
-        return t;
     }
 
     protected DynamicResult simulateDynamicDownload(double startTime,
@@ -848,10 +854,12 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         // 在每个带宽变化边界推进时间，按 min(链路可用, 最大传输带宽) 分配带宽，
         // 持续累积分段，直到镜像全部传完。
         DynamicResult result = new DynamicResult();
+        if (!Double.isFinite(startTime) || startTime < 0 || dataSize < 0 || (dataSize > 0 && maxTransferBW <= 0))
+            throw new IllegalArgumentException("Invalid dynamic transfer input");
         double t = startTime;
         double remaining = (double) dataSize;
 
-        for (int i = 0; i < 4096 && remaining > 0.0d; i++) {
+        while (remaining > 0.0d) {
             long dcAvail = (dcSlot == null) ? NFVUtil.MAXValue : dcSlot.getAvailableBWAt(t);
             long hostAvail = (hostSlot == null) ? NFVUtil.MAXValue : hostSlot.getAvailableBWAt(t);
             long allocBW = Math.min(maxTransferBW, Math.min(dcAvail, hostAvail));
@@ -862,28 +870,27 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
             if (allocBW <= 0L) {
                 if (nextChange == Double.MAX_VALUE) {
-                    // no progress path; fallback to avoid dead loop
-                    nextChange = t + 1.0d;
+                    throw new IllegalStateException("Image transfer cannot make progress at " + t);
                 }
-                t = nextChange + EPS;
+                t = nextChange;
                 continue;
             }
 
             if (nextChange == Double.MAX_VALUE) {
                 double dur = remaining / (double) allocBW;
                 double end = t + dur;
-                result.addSegment(t, end, allocBW);
+                this.addFinalTransferSegment(result, t, end, allocBW, dataSize);
                 t = end;
                 remaining = 0.0d;
                 break;
             }
 
-            double dur = Math.max(EPS, nextChange - t);
+            double dur = nextChange - t;
             double transferable = dur * (double) allocBW;
             if (transferable >= remaining) {
                 double needDur = remaining / (double) allocBW;
                 double end = t + needDur;
-                result.addSegment(t, end, allocBW);
+                this.addFinalTransferSegment(result, t, end, allocBW, dataSize);
                 t = end;
                 remaining = 0.0d;
                 break;
@@ -891,12 +898,27 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
                 double end = t + dur;
                 result.addSegment(t, end, allocBW);
                 remaining -= transferable;
-                t = end + EPS;
+                t = end;
             }
         }
 
         result.finishTime = t;
         return result;
+    }
+
+    private static double imageTransferByteTolerance(long dataSize) {
+        return Math.max(1.0e-7, dataSize * 1.0e-9);
+    }
+
+    private void addFinalTransferSegment(DynamicResult result, double start, double end,
+                                         long bandwidth, long dataSize) {
+        // Subtraction at an event boundary can leave a sub-ULP remainder. Accept it
+        // only when actual segments already satisfy the same byte check as commit.
+        if (end == start && result.segmentCount > 0
+                && Math.abs(result.transferredBytes() - dataSize) <= imageTransferByteTolerance(dataSize)) {
+            return;
+        }
+        result.addSegment(start, end, bandwidth);
     }
 
     private void commitDynamicReservation(String taskId,
@@ -905,18 +927,43 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
                                           DynamicResult result) {
         // Persist each simulated segment into slot occupancy to affect later tasks.
         // 将模拟出的每个分段写入带宽占用表，影响后续任务的可用带宽判断。
+        // Check the whole trace before mutating either path resource.
         for (int i = 0; i < result.segmentCount; i++) {
-            double s = result.startTimes[i];
-            double e = result.endTimes[i];
+            double s = result.startTimes[i], e = result.endTimes[i];
             long bw = result.bandwidths[i];
-            String segTaskId = taskId + "#seg" + i;
-            if (dcSlot != null) {
-                dcSlot.reserveBW(s, e, bw, segTaskId + "#dc");
-            }
-            if (hostSlot != null) {
-                hostSlot.reserveBW(s, e, bw, segTaskId + "#host");
-            }
+            if ((i > 0 && s < result.endTimes[i - 1])
+                    || (dcSlot != null && dcSlot.getAvailableBW(s, e) < bw)
+                    || (hostSlot != null && hostSlot.getAvailableBW(s, e) < bw))
+                throw new IllegalStateException("Infeasible image reservation: " + taskId);
         }
+        try {
+            for (int i = 0; i < result.segmentCount; i++) {
+                double s = result.startTimes[i];
+                double e = result.endTimes[i];
+                long bw = result.bandwidths[i];
+                String segTaskId = taskId + "#seg" + i;
+                if (dcSlot != null) {
+                    if (!dcSlot.reserveBW(s, e, bw, segTaskId + "#dc"))
+                        throw new IllegalStateException("DC reservation rejected: " + taskId);
+                }
+                if (hostSlot != null) {
+                    if (!hostSlot.reserveBW(s, e, bw, segTaskId + "#host"))
+                        throw new IllegalStateException("Host reservation rejected: " + taskId);
+                }
+            }
+        } catch (RuntimeException failure) {
+            for (int i = 0; i < result.segmentCount; i++) {
+                if (dcSlot != null) dcSlot.releaseBWExact(taskId + "#seg" + i + "#dc");
+                if (hostSlot != null) hostSlot.releaseBWExact(taskId + "#seg" + i + "#host");
+            }
+            throw failure;
+        }
+    }
+
+    @Override
+    public void validateSchedule() {
+        super.validateSchedule();
+        for (BandwidthTimeSlot slot : linkSlotMap.values()) slot.validateOccupancy();
     }
 
     private void commitStaticReservation(String taskId,
@@ -1056,18 +1103,30 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         // 动态仿真得到的分段传输轨迹。
         int segmentCount = 0;
         double finishTime = 0.0d;
-        double[] startTimes = new double[4096];
-        double[] endTimes = new double[4096];
-        long[] bandwidths = new long[4096];
+        double[] startTimes = new double[64];
+        double[] endTimes = new double[64];
+        long[] bandwidths = new long[64];
 
         void addSegment(double s, double e, long bw) {
+            if (!Double.isFinite(s) || !Double.isFinite(e) || e <= s || bw <= 0)
+                throw new IllegalStateException("Unrepresentable image transfer segment: start="
+                        + s + ", end=" + e + ", bandwidth=" + bw);
             if (segmentCount >= startTimes.length) {
-                return;
+                int size = Math.multiplyExact(startTimes.length, 2);
+                startTimes = Arrays.copyOf(startTimes, size);
+                endTimes = Arrays.copyOf(endTimes, size);
+                bandwidths = Arrays.copyOf(bandwidths, size);
             }
             startTimes[segmentCount] = s;
             endTimes[segmentCount] = e;
             bandwidths[segmentCount] = bw;
             segmentCount++;
+        }
+
+        double transferredBytes() {
+            double bytes = 0.0d;
+            for (int i = 0; i < segmentCount; i++) bytes += (endTimes[i] - startTimes[i]) * bandwidths[i];
+            return bytes;
         }
     }
 }

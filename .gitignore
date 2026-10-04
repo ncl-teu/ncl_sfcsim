@@ -25,6 +25,7 @@ classes/
 *.md
 !README.md
 !README_JP.md
+!regression/PRE_RERUN_AUDIT_20261004.md
 
 # Ignore properties files
 *.properties

@@ -3,6 +3,8 @@ package net.gripps.cloud.nfv.regression;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.Vector;
 import net.gripps.cloud.CloudUtil;
 import net.gripps.cloud.core.Cloud;
@@ -159,8 +161,8 @@ public final class ExecutionSlotRegressionTest {
         expect("empty unconstrained queue", 0, 18, 10, 18);
         expect("unconstrained front gap rejected", 0, 10, 18, 30, 20);
         expect("unconstrained front gap fits", 0, 10, 12, 12, 20);
-        // Preserve the existing mode-0 tail-only policy for multi-task queues.
-        expect("unconstrained multi-task tail", 0, 10, 12, 30, 0, 20);
+        expect("unconstrained internal insertion", 0, 10, 12, 12, 0, 20);
+        expect("multi-task front insertion", 1, 0, 0, 0, 20, 40);
         expect("search later gap", 1, 10, 18, 30, 0, 20, 50);
         expect("search later gap exact boundary", 1, 10, 45, 45, 0, 20, 50);
 
@@ -176,19 +178,21 @@ public final class ExecutionSlotRegressionTest {
         equal(12, frontProbe.intervals.get(0)[0], "core checked IRT-aware front start");
 
         Fixture tail = new Fixture(0, 20);
-        RecordingProbe tailProbe = new RecordingProbe(tail.env, 40, 50, 1);
-        equal(50, tailProbe.est(task(200, 5, -1), tail.cpu), "tail fallback keeps readiness");
+        RecordingProbe tailProbe = new RecordingProbe(tail.env, 40, 50, 0);
+        equal(50, tailProbe.est(task(200, 5, -1), tail.cpu), "tail keeps readiness");
         equal(50, tailProbe.intervals.get(0)[0], "core checked IRT-aware tail start");
         equal(55, tailProbe.intervals.get(0)[1], "core checked IRT-aware tail end");
 
-        RecordingProbe dataProbe = new RecordingProbe(tail.env, 50, 0, 1);
-        equal(50, dataProbe.est(task(200, 5, -1), tail.cpu), "tail fallback keeps DRT");
+        RecordingProbe dataProbe = new RecordingProbe(tail.env, 50, 0, 0);
+        equal(50, dataProbe.est(task(200, 5, -1), tail.cpu), "tail keeps DRT");
+        RecordingProbe impossible = new RecordingProbe(tail.env, 50, 0, 1);
+        require(Double.isInfinite(impossible.est(task(200, 5, -1), tail.cpu)), "rejected core must not fall back to an infeasible slot");
         tail.sibling(70);
         RecordingProbe siblingProbe = new RecordingProbe(tail.env, 10, 18, 1);
         equal(80, siblingProbe.est(task(200, 5, -1), tail.cpu), "tail fallback waits for core");
         front.sibling(70);
         RecordingProbe frontReject = new RecordingProbe(front.env, 10, 12, 1);
-        equal(80, frontReject.est(task(200, 5, -1), front.cpu), "front fallback waits for core");
+        equal(30, frontReject.est(task(200, 5, -1), front.cpu), "retry tail without waiting for unrelated sibling");
 
         for (int mode = 0; mode <= 1; mode++) {
             for (int count = 0; count <= 3; count++) {
@@ -197,8 +201,19 @@ public final class ExecutionSlotRegressionTest {
                         double[] starts = new double[count];
                         for (int i = 0; i < count; i++) starts[i] = i * 20;
                         Fixture fixture = new Fixture(starts);
-                        checkSlot(new Probe(fixture.env, mode, drt, irt), fixture,
+                        double selected = checkSlot(new Probe(fixture.env, mode, drt, irt), fixture,
                                 "sweep mode=" + mode + " count=" + count + " DRT=" + drt + " IRT=" + irt);
+                        // Exhaustive integer-time oracle: these fixtures have integer boundaries.
+                        for (int time = Math.max(drt, irt); time <= 100; time++) {
+                            boolean free = true;
+                            for (VNF existing : fixture.cpu.getVnfQueue()) {
+                                if (time < existing.getFinishTime() && time + 5 > existing.getStartTime()) free = false;
+                            }
+                            if (free) {
+                                equal(time, selected, "earliest feasible insertion oracle");
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -208,6 +223,7 @@ public final class ExecutionSlotRegressionTest {
 
     private static void audit(String label, DHEFT_VNFAlgorithm algorithm) {
         algorithm.mainProcess();
+        algorithm.validateSchedule();
         int pairs = 0;
         int scheduled = 0;
         for (VCPU cpu : algorithm.getAssignedVCPUMap().values()) {
@@ -239,7 +255,38 @@ public final class ExecutionSlotRegressionTest {
         System.out.println(label + " makespan=" + algorithm.getMakeSpan()
                 + " vCPUs=" + algorithm.getAssignedVCPUMap().size() + " overlapPairs=" + pairs);
         require(pairs == 0, label + ": same-vCPU execution overlap");
-        require(scheduled == algorithm.getSfc().getVnfMap().size(), label + ": missing scheduled tasks");
+        long actualTasks = algorithm.getSfc().getVnfMap().values().stream()
+                .filter(task -> !net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm.isVirtualBoundary(task)).count();
+        require(scheduled == actualTasks, label + ": missing scheduled tasks");
+        auditCoreUsage(label, algorithm);
+    }
+
+    private static void auditCoreUsage(String label, DHEFT_VNFAlgorithm algorithm) {
+        int violations = 0;
+        double maximum = 0;
+        for (Core core : algorithm.getEnv().getGlobal_coreMap().values()) {
+            TreeMap<Double, Long> events = new TreeMap<Double, Long>();
+            for (VCPU cpu : core.getvCPUMap().values()) {
+                for (VNF task : cpu.getVnfQueue()) {
+                    if (task.getFinishTime() <= task.getStartTime()) continue;
+                    events.merge(task.getStartTime(), (long) task.getUsage(), Long::sum);
+                    events.merge(task.getFinishTime(), -(long) task.getUsage(), Long::sum);
+                }
+            }
+            long activeUsage = 0;
+            boolean overloaded = false;
+            for (Map.Entry<Double, Long> event : events.entrySet()) {
+                // Merge starts/finishes at equal timestamps to respect [start,end).
+                activeUsage += event.getValue();
+                double average = NFVUtil.getRoundedValue(
+                        (double) activeUsage / core.getvCPUMap().size());
+                maximum = Math.max(maximum, average);
+                if (average > core.getMaxUsage()) overloaded = true;
+            }
+            if (overloaded) violations++;
+        }
+        System.out.println(label + " overloadedCores=" + violations + " peakCoreAverage=" + maximum);
+        require(violations == 0, label + ": actual concurrent core usage exceeds limit");
     }
 
     private static void realChecks(String properties) {

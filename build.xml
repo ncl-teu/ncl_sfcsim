@@ -89,8 +89,40 @@
     </javac>
   </target>
   <target name="regression_tests" depends="build, build_regression_tests"
-          description="Check image/data readiness and execution-slot feasibility">
+          description="Check readiness, execution slots, and sibling-vCPU usage">
     <java classname="net.gripps.cloud.nfv.regression.ExecutionSlotRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
+    <java classname="net.gripps.cloud.nfv.regression.CoreUsageRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
+    <java classname="net.gripps.cloud.nfv.regression.SchedulingStateRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
+    <java classname="net.gripps.cloud.nfv.regression.BoundaryRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
+    <java classname="net.gripps.cloud.nfv.regression.NumericalTransferRegressionTest"
           fork="true" failonerror="true">
       <classpath>
         <pathelement location="${tests}/regression" />

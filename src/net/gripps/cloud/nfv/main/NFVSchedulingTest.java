@@ -25,7 +25,9 @@ import java.util.Properties;
  * Created by Hidehiro Kanemitsu on 2018/12/01.
  */
 public class NFVSchedulingTest {
+    public static final String DATA_REVISION = "schedule-state-20261004-v1";
     public static void main(String[] args) {
+        System.out.println("[SIMULATOR-REVISION] " + DATA_REVISION);
         if (args == null || args.length < 1) {
             System.err.println("Usage: NFVSchedulingTest <nfv.properties> [DAG]");
             System.err.println("  [DAG] default=OFF, enable values: DAG/on/true/1/yes");
@@ -136,11 +138,13 @@ public class NFVSchedulingTest {
         //评判SLR的大小，通常SLR越接近1越好，表示算法的完成时间接近于理论最优完成时间。
         //不存在SLR为0的情况，因为至少需要处理所有任务的时间。SLR大于1表示算法的完成时间超过了理论最优完成时间，SLR小于1表示算法的完成时间优于理论最优完成时间（这通常是不可能的，除非存在某些特殊情况）。因此，SLR越接近1，算法性能越好。
 
-        SFC sfc0 = (SFC) sfc.deepCopy();
-        NFVEnvironment env0 = (NFVEnvironment) env.deepCopy();
-        RandomVNFClusteringAlgorithm alg1 = new RandomVNFClusteringAlgorithm(env0, sfc0);
-        alg1.mainProcess();
-        double time = NFVUtil.getRoundedValue((double) totalSize / (double) alg1.getMaxSpeed());
+        RandomVNFClusteringAlgorithm alg1 = null;
+        if (parseOptionalBooleanProperty(experimentProps, "run_random_clustering", true)) {
+            SFC sfc0 = (SFC) sfc.deepCopy();
+            NFVEnvironment env0 = (NFVEnvironment) env.deepCopy();
+            alg1 = new RandomVNFClusteringAlgorithm(env0, sfc0);
+            alg1.mainProcess();
+        }
         //迭代VNF，计算总工作量、总数据大小和总边数等信息，这些信息将用于后续的性能分析和算法评估。
         //总工作量是所有VNF的工作量之和，总数据大小是所有数据依赖关系的数据大小之和，总边数是所有VNF的出边数量之和。
         //CCR（Communication to Computation Ratio）是通信时间与计算时间的比值，计算方法是平均数据大小除以平均带宽，再除以平均工作量除以平均速度。CCR越大，表示通信时间相对于计算时间越长，这可能会影响算法的性能。
@@ -205,10 +209,12 @@ public class NFVSchedulingTest {
                 + " / NCCR_total: " + NCCR_total);
 
 
-        System.out.println("[RandomVNFClustering]----------");
-        System.out.println("[RandomVNFClustering]makespan:"+alg1.getMakeSpan());
-        System.out.println("[RandomVNFClustering]SLR:" + NFVUtil.getRoundedValue(alg1.getMakeSpan() / alg1.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg1.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg1.getHostSet().size() +
-                "/# of Ins:" + alg1.calcTotalFunctionInstanceNum());
+        if (alg1 != null) {
+            System.out.println("[RandomVNFClustering]----------");
+            System.out.println("[RandomVNFClustering]makespan:"+alg1.getMakeSpan());
+            System.out.println("[RandomVNFClustering]SLR:" + NFVUtil.getRoundedValue(alg1.getMakeSpan() / alg1.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + alg1.getAssignedVCPUMap().size() + "/ # of Hosts:" + alg1.getHostSet().size() +
+                    "/# of Ins:" + alg1.calcTotalFunctionInstanceNum());
+        }
 /*
         RandomVNFListSchedulingAlgorithm alg2 = new RandomVNFListSchedulingAlgorithm(env2, sfc2);
         alg2.mainProcess();
@@ -252,6 +258,8 @@ public class NFVSchedulingTest {
             env7 = (NFVEnvironment) env.deepCopy();
             dheft = new DHEFT_VNFAlgorithm(env7, sfc7);
             dheft.mainProcess();
+            dheft.validateSchedule();
+            System.out.println("[DHEFT-VALIDATION] PASS");
             System.out.println("[DHEFT]----------");
             System.out.println("[DHEFT]makespan:"+dheft.getMakeSpan());
             System.out.println("[DHEFT]SLR:" + NFVUtil.getRoundedValue(dheft.getMakeSpan() / dheft.getTotalCPProcTimeAtMaxSpeed()) + " / # of vCPUs: " + dheft.getAssignedVCPUMap().size() + "/ # of Hosts:" + dheft.getHostSet().size()
@@ -442,8 +450,10 @@ public class NFVSchedulingTest {
         NFVEnvironment modeEnv = (NFVEnvironment) baseEnv.deepCopy();
         NHEFT_VNFAlgorithm algorithm = new NHEFT_VNFAlgorithm(modeEnv, modeSfc);
         algorithm.mainProcess();
+        algorithm.validateSchedule();
 
         String label = modeConfig.label;
+        System.out.println("[" + label + "-VALIDATION] PASS");
         System.out.println("[" + label + "]----------");
         System.out.println("[" + label + "]makespan:" + algorithm.getMakeSpan());
         System.out.println("[" + label + "]SLR:"
