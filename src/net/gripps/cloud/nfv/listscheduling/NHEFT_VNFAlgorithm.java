@@ -889,13 +889,13 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             double transferable = dur * (double) allocBW;
             if (transferable >= remaining) {
                 double needDur = remaining / (double) allocBW;
-                double end = t + needDur;
+                double end = this.boundSegmentEnd(t + needDur, nextChange, allocBW, dcSlot, hostSlot);
                 this.addFinalTransferSegment(result, t, end, allocBW, dataSize);
                 t = end;
                 remaining = 0.0d;
                 break;
             } else {
-                double end = t + dur;
+                double end = this.boundSegmentEnd(t + dur, nextChange, allocBW, dcSlot, hostSlot);
                 result.addSegment(t, end, allocBW);
                 remaining -= transferable;
                 t = end;
@@ -904,6 +904,23 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
         result.finishTime = t;
         return result;
+    }
+
+    /**
+     * t + (nextChange - t) can round one ULP past nextChange. The overshoot is harmless
+     * while at least allocBW stays free from nextChange on, so that arithmetic is kept and
+     * earlier results reproduce bit for bit. Only when less bandwidth is free there would
+     * the segment become infeasible at commit, and it is cut exactly at nextChange.
+     * t + (nextChange - t) 可能因舍入越过 nextChange 一个 ULP；只有越过后带宽不足时才截断。
+     */
+    private double boundSegmentEnd(double end, double nextChange, long allocBW,
+                                   BandwidthTimeSlot dcSlot, BandwidthTimeSlot hostSlot) {
+        if (end <= nextChange) {
+            return end;
+        }
+        long dcAvail = (dcSlot == null) ? NFVUtil.MAXValue : dcSlot.getAvailableBWAt(nextChange);
+        long hostAvail = (hostSlot == null) ? NFVUtil.MAXValue : hostSlot.getAvailableBWAt(nextChange);
+        return (Math.min(dcAvail, hostAvail) < allocBW) ? nextChange : end;
     }
 
     private static double imageTransferByteTolerance(long dataSize) {

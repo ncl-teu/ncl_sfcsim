@@ -11,8 +11,6 @@
 !/lib/**
 !/src/
 !/src/**
-!/regression/
-!/regression/**
 !.gitignore
 
 .idea
@@ -23,10 +21,12 @@ classes/
 
 # Ignore md files except README README_JP
 *.md
-!README.md
-!README_JP.md
-!regression/PRE_RERUN_AUDIT_20261004.md
+!/README.md
+!/README_JP.md
 
 # Ignore properties files
 *.properties
 !nfv.properties
+
+# Local conversation logs
+/chat/
