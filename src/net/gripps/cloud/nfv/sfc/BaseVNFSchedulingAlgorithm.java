@@ -360,6 +360,71 @@ public abstract class BaseVNFSchedulingAlgorithm {
         this.maxBW = max_bw;
         this.minBW = min_bw;
         this.aveBW = ave_bw;
+
+        // Speed/BW statistics above stay those of the whole platform, so task
+        // priorities are identical with and without a resource budget.
+        this.applyAvailableVCPULimit();
+    }
+
+    /**
+     * Restricts the candidate vCPUs to NFVUtil.available_vcpu_limit.
+     * Every algorithm sees the same subset because the choice depends only on
+     * the platform and random_seed.
+     */
+    protected void applyAvailableVCPULimit() {
+        int limit = NFVUtil.available_vcpu_limit;
+        if (limit <= 0) {
+            return;
+        }
+        HashMap<String, VCPU> selected = selectAvailableVCPUs(this.vcpuMap, limit, CloudUtil.random_seed);
+        this.vcpuMap.keySet().retainAll(selected.keySet());
+        HashSet<String> vms = new HashSet<String>();
+        HashSet<String> hosts = new HashSet<String>();
+        for (VCPU cpu : this.vcpuMap.values()) {
+            vms.add(cpu.getVMID());
+            hosts.add(this.env.getGlobal_vmMap().get(cpu.getVMID()).getHostID());
+        }
+        System.out.println("[VCPU-LIMIT] " + this.getClass().getSimpleName()
+                + " limit=" + limit + " available=" + this.vcpuMap.size()
+                + " vms=" + vms.size() + " hosts=" + hosts.size());
+    }
+
+    /**
+     * Draws whole VMs in a seeded random order until limit vCPUs are chosen;
+     * the last VM contributes only the vCPUs still needed. The result does not
+     * depend on the iteration order of candidates.
+     */
+    public static HashMap<String, VCPU> selectAvailableVCPUs(Map<String, VCPU> candidates, int limit, long seed) {
+        TreeMap<String, List<VCPU>> byVM = new TreeMap<String, List<VCPU>>();
+        for (VCPU cpu : candidates.values()) {
+            if (cpu.getVMID() == null) {
+                continue;
+            }
+            List<VCPU> cpus = byVM.get(cpu.getVMID());
+            if (cpus == null) {
+                cpus = new ArrayList<VCPU>();
+                byVM.put(cpu.getVMID(), cpus);
+            }
+            cpus.add(cpu);
+        }
+        List<String> vmOrder = new ArrayList<String>(byVM.keySet());
+        Collections.shuffle(vmOrder, new Random(seed));
+        HashMap<String, VCPU> selected = new HashMap<String, VCPU>();
+        for (String vmID : vmOrder) {
+            List<VCPU> cpus = byVM.get(vmID);
+            Collections.sort(cpus, new Comparator<VCPU>() {
+                public int compare(VCPU a, VCPU b) {
+                    return a.getPrefix().compareTo(b.getPrefix());
+                }
+            });
+            for (VCPU cpu : cpus) {
+                if (selected.size() >= limit) {
+                    return selected;
+                }
+                selected.put(cpu.getPrefix(), cpu);
+            }
+        }
+        return selected;
     }
 
     /**

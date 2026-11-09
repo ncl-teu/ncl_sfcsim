@@ -86,6 +86,12 @@ public class NFVUtil extends CloudUtil {
     public static int debug_nheft = 0;
 
     /**
+     * Number of VM-bound vCPUs offered to every scheduler (resource budget).
+     * 0 keeps the whole platform available, i.e. the original behavior.
+     */
+    public static int available_vcpu_limit = 0;
+
+    /**
      * Default disables resource-aware vCPU reuse and preserves the original
      * NHEFT policy, which always selects the candidate with minimum EFT.
      */
@@ -249,6 +255,23 @@ public class NFVUtil extends CloudUtil {
                 }
             }catch(Exception _e){
                 // ignore
+            }
+
+            // Optional resource budget. Reset on every initialization so a
+            // missing property never inherits an earlier value in this JVM.
+            NFVUtil.available_vcpu_limit = 0;
+            String limitStr = prop.getProperty("available_vcpu_limit");
+            if (limitStr != null && limitStr.trim().length() > 0) {
+                try {
+                    int limit = Integer.valueOf(limitStr.trim()).intValue();
+                    if (limit < 0) {
+                        throw new NumberFormatException("negative limit");
+                    }
+                    NFVUtil.available_vcpu_limit = limit;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid available_vcpu_limit='" + limitStr
+                            + "'; using 0 (whole platform)");
+                }
             }
 
             // Optional NHEFT resource-consolidation parameter. Reset the

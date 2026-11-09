@@ -130,6 +130,14 @@
         <fileset dir="${lib}"><include name="*.jar" /></fileset>
       </classpath>
     </java>
+    <java classname="net.gripps.cloud.nfv.regression.AvailableVCPULimitRegressionTest"
+          fork="true" failonerror="true">
+      <classpath>
+        <pathelement location="${tests}/regression" />
+        <pathelement location="${build}" />
+        <fileset dir="${lib}"><include name="*.jar" /></fileset>
+      </classpath>
+    </java>
   </target>
   <target name="doc" depends="init">
     <javadoc destdir="${docsapi}" author="true" version="true" use="true" windowtitle="API for gripps" encoding="UTF-8">
