@@ -1090,6 +1090,11 @@ public abstract class BaseVNFSchedulingAlgorithm {
         double ready = Math.max(this.getDLInfo(vnf, cpu).get("finish"),
                 this.calcDeadLine(vnf, cpu).get("arrival_time"));
         double execution = this.calcExecTime(vnf.getWorkLoad(), cpu);
+        return this.findEarliestExecutionStart(vnf, cpu, ready, execution);
+    }
+
+    /** Checks execution capacity without estimating image or data readiness. */
+    protected final double findEarliestExecutionStart(VNF vnf, VCPU cpu, double ready, double execution) {
         if (!Double.isFinite(ready) || ready < 0 || ready >= NFVUtil.MAXValue
                 || !Double.isFinite(execution) || execution < 0) return Double.POSITIVE_INFINITY;
         if (execution == 0.0d) return ready;
