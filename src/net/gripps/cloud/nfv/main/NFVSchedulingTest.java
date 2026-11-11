@@ -283,6 +283,9 @@ public class NFVSchedulingTest {
         if (algorithmRunConfig.runDepComp) {
             runDepComp(sfc, env);
         }
+        if (algorithmRunConfig.runPBTLA) {
+            runPBTLA(sfc, env, experimentProps);
+        }
 
         if (dagExportEnabled) {
             try {
@@ -468,6 +471,39 @@ public class NFVSchedulingTest {
         algorithm.printCriticalPathSummary(label);
     }
 
+    private static void runPBTLA(SFC baseSfc, NFVEnvironment baseEnv, Properties props) {
+        SFC sfc = (SFC) baseSfc.deepCopy();
+        NFVEnvironment env = (NFVEnvironment) baseEnv.deepCopy();
+        PBTLA_VNFAlgorithm algorithm = new PBTLA_VNFAlgorithm(env, sfc,
+                parseOptionalDoubleProperty(props, "pbtla_alpha1", 1.0d),
+                parseOptionalDoubleProperty(props, "pbtla_alpha2", 1.0d),
+                parseOptionalDoubleProperty(props, "pbtla_alpha3", 1.0d),
+                parseOptionalDoubleProperty(props, "pbtla_lambda", 0.5d),
+                parseOptionalDoubleProperty(props, "pbtla_batch_core_ratio", 0.5d),
+                (props == null ? PBTLA_VNFAlgorithm.TAB_SINGLE
+                        : props.getProperty("pbtla_tab_mode", PBTLA_VNFAlgorithm.TAB_SINGLE)).trim().toLowerCase());
+        algorithm.mainProcess();
+        algorithm.validateSchedule();
+
+        String label = PBTLA_VNFAlgorithm.LABEL;
+        System.out.println("[" + label + "-MODEL] " + algorithm.getModelRevision());
+        System.out.println("[" + label + "-PARAMS] " + algorithm.describeParameters());
+        System.out.println("[" + label + "-VALIDATION] PASS");
+        System.out.println("[" + label + "]makespan:" + algorithm.getMakeSpan());
+        System.out.println("[" + label + "]SLR:"
+                + NFVUtil.getRoundedValue(algorithm.getMakeSpan() / algorithm.getTotalCPProcTimeAtMaxSpeed())
+                + " / # of vCPUs: " + algorithm.getAssignedVCPUMap().size()
+                + "/ # of Hosts:" + algorithm.getHostSet().size()
+                + "/# of Ins:" + algorithm.calcTotalFunctionInstanceNum());
+        System.out.println("[" + label + "]imageDL_total=" + algorithm.getImageDownloadTotalCount()
+                + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
+                + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
+        System.out.println("[" + label + "]batches=" + algorithm.getBatchCount()
+                + " / deferred=" + algorithm.getDeferredCount()
+                + " / same_host_fetches=" + algorithm.getSameHostFetchCount());
+        algorithm.printCriticalPathSummary(label);
+    }
+
     private static NHEFTRunResult runNHEFTMode(NHEFTModeConfig modeConfig,
                                                SFC baseSfc,
                                                NFVEnvironment baseEnv) {
@@ -589,6 +625,7 @@ public class NFVSchedulingTest {
         boolean runNHEFT = parseOptionalBooleanProperty(props, "run_nheft", true);
         boolean runNHEFTMode2 = parseOptionalBooleanProperty(props, "run_nheft_mode2", hasMode2);
         boolean runDepComp = parseOptionalBooleanProperty(props, "run_dep_comp", false);
+        boolean runPBTLA = parseOptionalBooleanProperty(props, "run_pbtla", false);
 
         if (!hasMode2 && runNHEFTMode2) {
             System.err.println("[RUN-CONFIG] run_nheft_mode2=1 but nheft_mode2_enabled is OFF. "
@@ -601,7 +638,8 @@ public class NFVSchedulingTest {
                 runDHEFT,
                 runNHEFT,
                 runNHEFTMode2,
-                runDepComp
+                runDepComp,
+                runPBTLA
         );
     }
 
@@ -614,7 +652,8 @@ public class NFVSchedulingTest {
                 + " / run_nheft=" + (algorithmRunConfig.runNHEFT ? 1 : 0)
                 + " / run_nheft_mode2=" + (algorithmRunConfig.runNHEFTMode2 ? 1 : 0)
                 + " (" + mode2Label + ")"
-                + (algorithmRunConfig.runDepComp ? " / run_dep_comp=1" : ""));
+                + (algorithmRunConfig.runDepComp ? " / run_dep_comp=1" : "")
+                + (algorithmRunConfig.runPBTLA ? " / run_pbtla=1" : ""));
     }
 
     private static boolean isDagExportEnabled(String[] args) {
@@ -892,17 +931,20 @@ public class NFVSchedulingTest {
         private final boolean runNHEFT;
         private final boolean runNHEFTMode2;
         private final boolean runDepComp;
+        private final boolean runPBTLA;
 
         private AlgorithmRunConfig(boolean runHEFT,
                                    boolean runDHEFT,
                                    boolean runNHEFT,
                                    boolean runNHEFTMode2,
-                                   boolean runDepComp) {
+                                   boolean runDepComp,
+                                   boolean runPBTLA) {
             this.runHEFT = runHEFT;
             this.runDHEFT = runDHEFT;
             this.runNHEFT = runNHEFT;
             this.runNHEFTMode2 = runNHEFTMode2;
             this.runDepComp = runDepComp;
+            this.runPBTLA = runPBTLA;
         }
     }
 
