@@ -10,13 +10,18 @@ import net.gripps.cloud.nfv.clustering.SF_CUVAlgorithm;
 import net.gripps.cloud.nfv.clustering.RandomVNFClusteringAlgorithm;
 import net.gripps.cloud.nfv.listscheduling.*;
 import net.gripps.cloud.nfv.optimization.CoordVNFAlgorithm;
+import net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.SFCGenerator;
 import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.clustering.common.aplmodel.DataDependence;
 
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Properties;
@@ -28,9 +33,18 @@ public class NFVSchedulingTest {
     public static final String DATA_REVISION = "schedule-state-20261004-v1";
     public static void main(String[] args) {
         System.out.println("[SIMULATOR-REVISION] " + DATA_REVISION);
+        if (args != null && args.length == 1 && "--screen-inputs".equals(args[0])) {
+            try {
+                screenInputs();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return;
+        }
         if (args == null || args.length < 1) {
             System.err.println("Usage: NFVSchedulingTest <nfv.properties> [DAG]");
             System.err.println("  [DAG] default=OFF, enable values: DAG/on/true/1/yes");
+            System.err.println("  --screen-inputs: read one seeded properties path per line from stdin");
             return;
         }
         //設定ファイルを取得
@@ -145,68 +159,11 @@ public class NFVSchedulingTest {
             alg1 = new RandomVNFClusteringAlgorithm(env0, sfc0);
             alg1.mainProcess();
         }
-        //迭代VNF，计算总工作量、总数据大小和总边数等信息，这些信息将用于后续的性能分析和算法评估。
-        //总工作量是所有VNF的工作量之和，总数据大小是所有数据依赖关系的数据大小之和，总边数是所有VNF的出边数量之和。
-        //CCR（Communication to Computation Ratio）是通信时间与计算时间的比值，计算方法是平均数据大小除以平均带宽，再除以平均工作量除以平均速度。CCR越大，表示通信时间相对于计算时间越长，这可能会影响算法的性能。
-        Iterator<VNF> vnfIte = sfc.getVnfMap().values().iterator();
-        long totalWorkload = 0;
-        long totalDataSize = 0;
-        long totalEdgeNum = 0;
-        while (vnfIte.hasNext()) {
-            VNF vnf = vnfIte.next();
-            totalWorkload += vnf.getWorkLoad();
-            totalEdgeNum += vnf.getDsucList().size();
-            Iterator<DataDependence> dsucIte = vnf.getDsucList().iterator();
-            while (dsucIte.hasNext()) {
-                DataDependence dd = dsucIte.next();
-                totalDataSize += dd.getMaxDataSize();
-            }
-        }
-        //次に，環境．
-        long totalSpeed = 0;
-        long totalBW = 0;
-        long hostNum = env.getGlobal_hostMap().size();
-        Iterator<ComputeHost> cIte = env.getGlobal_hostMap().values().iterator();
-        while (cIte.hasNext()) {
-            ComputeHost host = cIte.next();
-            totalBW += host.getBw();
-        }
-        double ave_bw = NFVUtil.getRoundedValue((double) totalBW / (double) hostNum);
-
-        Iterator<VCPU> vcpuIte = env.getGlobal_vcpuMap().values().iterator();
-        long vcpuNum = env.getGlobal_vcpuMap().size();
-        while (vcpuIte.hasNext()) {
-            VCPU vcpu = vcpuIte.next();
-            totalSpeed += vcpu.getMips();
-        }
-        //正式开始计算CCR，平均速度是总速度除以vCPU数量，平均工作量是总工作量除以VNF数量，平均数据大小是总数据大小除以边的数量。然后计算平均通信时间、平均处理时间和CCR。
-        double ave_speed = NFVUtil.getRoundedValue((double) totalSpeed / (double) vcpuNum);
-
-        double ave_workload = NFVUtil.getRoundedValue((double) totalWorkload / (double) sfc.getVnfMap().size());
-        double ave_datasize = NFVUtil.getRoundedValue((double) totalDataSize / (double) totalEdgeNum);
-
-        double ave_comTime = NFVUtil.getRoundedValue((double) ave_datasize / (double) ave_bw);
-        double ave_procTime = NFVUtil.getRoundedValue((double) ave_workload / (double) ave_speed);
-        double CCR = NFVUtil.getRoundedValue((double) ave_comTime / (double) ave_procTime);
-
-        // IDR_image:
-        //   T_image / T_comp, where T_image uses an effective repo->host bandwidth
-        //   based on per-host bottleneck BW and harmonic mean aggregation.
-        double ave_image_size = calcAverageImageSize(sfc);
-        double bw_img_eff = calcRepoToHostEffectiveBandwidth(env);
-        double ave_image_comTime;
-        if (bw_img_eff > 0.0d) {
-            ave_image_comTime = NFVUtil.getRoundedValue(ave_image_size / bw_img_eff);
-        } else {
-            ave_image_comTime = NFVUtil.MAXValue;
-        }
-        double IDR_image = NFVUtil.getRoundedValue((double) ave_image_comTime / (double) ave_procTime);
-        double NCCR_total = NFVUtil.getRoundedValue(CCR + IDR_image);
-
-        System.out.println("CCR: " + CCR + " /VNF Num:" + sfc.getVnfMap().size());
-        System.out.println("CCR_data: " + CCR
-                + " / IDR_image: " + IDR_image
-                + " / NCCR_total: " + NCCR_total);
+        double[] ratios = calculateCommunicationRatios(sfc, env);
+        System.out.println("CCR: " + ratios[0] + " /VNF Num:" + sfc.getVnfMap().size());
+        System.out.println("CCR_data: " + ratios[0]
+                + " / IDR_image: " + ratios[1]
+                + " / NCCR_total: " + ratios[2]);
 
 
         if (alg1 != null) {
@@ -237,6 +194,7 @@ public class NFVSchedulingTest {
             System.out.println("[HEFT]imageDL_total=" + heftImageDlTotal
                     + " / fromRepo=" + heftImageDlTotal
                     + " / fromHost=0");
+            printExecutionTimes("HEFT", heft);
             heft.printCriticalPathSummary("HEFT");
         }
 
@@ -267,6 +225,7 @@ public class NFVSchedulingTest {
             System.out.println("[DHEFT]imageDL_total=" + dheft.getImageDownloadTotalCount()
                     + " / fromRepo=" + dheft.getImageDownloadFromRepoCount()
                     + " / fromHost=" + dheft.getImageDownloadFromHostCount());
+            printExecutionTimes("DHEFT", dheft);
             dheft.printCriticalPathSummary("DHEFT");
         }
 
@@ -285,6 +244,12 @@ public class NFVSchedulingTest {
         }
         if (algorithmRunConfig.runPBTLA) {
             runPBTLA(sfc, env, experimentProps);
+        }
+        if (algorithmRunConfig.runSDTS) {
+            runSDTS(sfc, env);
+        }
+        if (algorithmRunConfig.runBPPTS) {
+            runBPPTS(sfc, env);
         }
 
         if (dagExportEnabled) {
@@ -334,9 +299,9 @@ public class NFVSchedulingTest {
                         copiedProperties,
                         sfc,
                         env,
-                        CCR,
-                        IDR_image,
-                        NCCR_total,
+                        ratios[0],
+                        ratios[1],
+                        ratios[2],
                         heftSnapshot,
                         dheftSnapshot,
                         nheftSnapshot
@@ -448,6 +413,80 @@ public class NFVSchedulingTest {
 
     }
 
+    private static void screenInputs() throws IOException {
+        try (BufferedReader configs = new BufferedReader(
+                new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+            String fileName;
+            while ((fileName = configs.readLine()) != null) {
+                // Match the normal run's initialization order and never construct a scheduler.
+                NFVUtil.getIns().initialize(fileName);
+                long seed = CloudUtil.random_seed;
+                if (seed < 0) {
+                    throw new IllegalArgumentException("Screening requires random_seed: " + fileName);
+                }
+                SFC sfc = SFCGenerator.generateIndependentWorkflow();
+                CloudUtil.getInstance().initialize(fileName);
+                NFVEnvironment env = new NFVEnvironment();
+                double[] ratios = calculateCommunicationRatios(sfc, env);
+                System.out.println("[SEED-INPUT] " + seed + " " + ratios[0] + " " + ratios[1] + " " + ratios[2]);
+            }
+        }
+    }
+
+    private static double[] calculateCommunicationRatios(SFC sfc, NFVEnvironment env) {
+        long totalWorkload = 0;
+        long totalDataSize = 0;
+        long totalEdgeNum = 0;
+        for (VNF vnf : sfc.getVnfMap().values()) {
+            totalWorkload += vnf.getWorkLoad();
+            totalEdgeNum += vnf.getDsucList().size();
+            for (DataDependence edge : vnf.getDsucList()) {
+                totalDataSize += edge.getMaxDataSize();
+            }
+        }
+        long totalSpeed = 0;
+        long totalBW = 0;
+        for (ComputeHost host : env.getGlobal_hostMap().values()) {
+            totalBW += host.getBw();
+        }
+        for (VCPU vcpu : env.getGlobal_vcpuMap().values()) {
+            totalSpeed += vcpu.getMips();
+        }
+        double aveBw = NFVUtil.getRoundedValue((double) totalBW / env.getGlobal_hostMap().size());
+        double aveSpeed = NFVUtil.getRoundedValue((double) totalSpeed / env.getGlobal_vcpuMap().size());
+        double aveWorkload = NFVUtil.getRoundedValue((double) totalWorkload / sfc.getVnfMap().size());
+        double aveDataSize = NFVUtil.getRoundedValue((double) totalDataSize / totalEdgeNum);
+        double aveComTime = NFVUtil.getRoundedValue(aveDataSize / aveBw);
+        double aveProcTime = NFVUtil.getRoundedValue(aveWorkload / aveSpeed);
+        double ccr = NFVUtil.getRoundedValue(aveComTime / aveProcTime);
+
+        // IDR uses the harmonic mean of per-host repository-to-host bottleneck rates.
+        double bwImage = calcRepoToHostEffectiveBandwidth(env);
+        double aveImageTime = bwImage > 0.0d
+                ? NFVUtil.getRoundedValue(calcAverageImageSize(sfc) / bwImage) : NFVUtil.MAXValue;
+        double idr = NFVUtil.getRoundedValue(aveImageTime / aveProcTime);
+        return new double[] {ccr, idr, NFVUtil.getRoundedValue(ccr + idr)};
+    }
+
+    private static void printExecutionTimes(String label, BaseVNFSchedulingAlgorithm algorithm) {
+        long fastest = 0L;
+        for (VCPU cpu : algorithm.getVcpuMap().values()) {
+            fastest = Math.max(fastest, cpu.getMips());
+        }
+        double busy = 0.0d;
+        double serialReference = 0.0d;
+        // Count every real task, not only the critical path or the span of a CPU's assignments.
+        for (VNF task : algorithm.getSfc().getVnfMap().values()) {
+            if (BaseVNFSchedulingAlgorithm.isVirtualBoundary(task)) continue;
+            busy += task.getFinishTime() - task.getStartTime();
+            if (fastest > 0L) {
+                serialReference += algorithm.calcExecTime(task.getWorkLoad(), fastest);
+            }
+        }
+        System.out.println("[" + label + "]cpu_busy_time=" + busy
+                + " / serial_reference_time=" + serialReference);
+    }
+
     private static void runDepComp(SFC baseSfc, NFVEnvironment baseEnv) {
         SFC sfc = (SFC) baseSfc.deepCopy();
         NFVEnvironment env = (NFVEnvironment) baseEnv.deepCopy();
@@ -468,6 +507,53 @@ public class NFVSchedulingTest {
                 + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
                 + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
         System.out.println("[" + label + "]capacity_fallbacks=" + algorithm.getCapacityFallbackCount());
+        printExecutionTimes(label, algorithm);
+        algorithm.printCriticalPathSummary(label);
+    }
+
+    private static void runSDTS(SFC baseSfc, NFVEnvironment baseEnv) {
+        SFC sfc = (SFC) baseSfc.deepCopy();
+        NFVEnvironment env = (NFVEnvironment) baseEnv.deepCopy();
+        SDTS_VNFAlgorithm algorithm = new SDTS_VNFAlgorithm(env, sfc);
+        algorithm.mainProcess();
+        algorithm.validateSchedule();
+
+        String label = SDTS_VNFAlgorithm.LABEL;
+        System.out.println("[" + label + "-MODEL] " + SDTS_VNFAlgorithm.MODEL_REVISION);
+        System.out.println("[" + label + "-VALIDATION] PASS");
+        System.out.println("[" + label + "]makespan:" + algorithm.getMakeSpan());
+        System.out.println("[" + label + "]SLR:"
+                + NFVUtil.getRoundedValue(algorithm.getMakeSpan() / algorithm.getTotalCPProcTimeAtMaxSpeed())
+                + " / # of vCPUs: " + algorithm.getAssignedVCPUMap().size()
+                + "/ # of Hosts:" + algorithm.getHostSet().size()
+                + "/# of Ins:" + algorithm.calcTotalFunctionInstanceNum());
+        System.out.println("[" + label + "]imageDL_total=" + algorithm.getImageDownloadTotalCount()
+                + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
+                + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
+        printExecutionTimes(label, algorithm);
+        algorithm.printCriticalPathSummary(label);
+    }
+
+    private static void runBPPTS(SFC baseSfc, NFVEnvironment baseEnv) {
+        SFC sfc = (SFC) baseSfc.deepCopy();
+        NFVEnvironment env = (NFVEnvironment) baseEnv.deepCopy();
+        BPPTS_VNFAlgorithm algorithm = new BPPTS_VNFAlgorithm(env, sfc);
+        algorithm.mainProcess();
+        algorithm.validateSchedule();
+
+        String label = BPPTS_VNFAlgorithm.LABEL;
+        System.out.println("[" + label + "-MODEL] " + BPPTS_VNFAlgorithm.MODEL_REVISION);
+        System.out.println("[" + label + "-VALIDATION] PASS");
+        System.out.println("[" + label + "]makespan:" + algorithm.getMakeSpan());
+        System.out.println("[" + label + "]SLR:"
+                + NFVUtil.getRoundedValue(algorithm.getMakeSpan() / algorithm.getTotalCPProcTimeAtMaxSpeed())
+                + " / # of vCPUs: " + algorithm.getAssignedVCPUMap().size()
+                + "/ # of Hosts:" + algorithm.getHostSet().size()
+                + "/# of Ins:" + algorithm.calcTotalFunctionInstanceNum());
+        System.out.println("[" + label + "]imageDL_total=" + algorithm.getImageDownloadTotalCount()
+                + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
+                + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
+        printExecutionTimes(label, algorithm);
         algorithm.printCriticalPathSummary(label);
     }
 
@@ -501,6 +587,7 @@ public class NFVSchedulingTest {
         System.out.println("[" + label + "]batches=" + algorithm.getBatchCount()
                 + " / deferred=" + algorithm.getDeferredCount()
                 + " / same_host_fetches=" + algorithm.getSameHostFetchCount());
+        printExecutionTimes(label, algorithm);
         algorithm.printCriticalPathSummary(label);
     }
 
@@ -526,6 +613,7 @@ public class NFVSchedulingTest {
         System.out.println("[" + label + "]imageDL_total=" + algorithm.getImageDownloadTotalCount()
                 + " / fromRepo=" + algorithm.getImageDownloadFromRepoCount()
                 + " / fromHost=" + algorithm.getImageDownloadFromHostCount());
+        printExecutionTimes(label, algorithm);
         algorithm.printCriticalPathSummary(label);
         return new NHEFTRunResult(label, modeSfc, modeEnv, algorithm);
     }
@@ -626,6 +714,8 @@ public class NFVSchedulingTest {
         boolean runNHEFTMode2 = parseOptionalBooleanProperty(props, "run_nheft_mode2", hasMode2);
         boolean runDepComp = parseOptionalBooleanProperty(props, "run_dep_comp", false);
         boolean runPBTLA = parseOptionalBooleanProperty(props, "run_pbtla", false);
+        boolean runSDTS = parseOptionalBooleanProperty(props, "run_sdts", false);
+        boolean runBPPTS = parseOptionalBooleanProperty(props, "run_bppts", false);
 
         if (!hasMode2 && runNHEFTMode2) {
             System.err.println("[RUN-CONFIG] run_nheft_mode2=1 but nheft_mode2_enabled is OFF. "
@@ -639,7 +729,9 @@ public class NFVSchedulingTest {
                 runNHEFT,
                 runNHEFTMode2,
                 runDepComp,
-                runPBTLA
+                runPBTLA,
+                runSDTS,
+                runBPPTS
         );
     }
 
@@ -653,7 +745,9 @@ public class NFVSchedulingTest {
                 + " / run_nheft_mode2=" + (algorithmRunConfig.runNHEFTMode2 ? 1 : 0)
                 + " (" + mode2Label + ")"
                 + (algorithmRunConfig.runDepComp ? " / run_dep_comp=1" : "")
-                + (algorithmRunConfig.runPBTLA ? " / run_pbtla=1" : ""));
+                + (algorithmRunConfig.runPBTLA ? " / run_pbtla=1" : "")
+                + (algorithmRunConfig.runSDTS ? " / run_sdts=1" : "")
+                + (algorithmRunConfig.runBPPTS ? " / run_bppts=1" : ""));
     }
 
     private static boolean isDagExportEnabled(String[] args) {
@@ -932,19 +1026,25 @@ public class NFVSchedulingTest {
         private final boolean runNHEFTMode2;
         private final boolean runDepComp;
         private final boolean runPBTLA;
+        private final boolean runSDTS;
+        private final boolean runBPPTS;
 
         private AlgorithmRunConfig(boolean runHEFT,
                                    boolean runDHEFT,
                                    boolean runNHEFT,
                                    boolean runNHEFTMode2,
                                    boolean runDepComp,
-                                   boolean runPBTLA) {
+                                   boolean runPBTLA,
+                                   boolean runSDTS,
+                                   boolean runBPPTS) {
             this.runHEFT = runHEFT;
             this.runDHEFT = runDHEFT;
             this.runNHEFT = runNHEFT;
             this.runNHEFTMode2 = runNHEFTMode2;
             this.runDepComp = runDepComp;
             this.runPBTLA = runPBTLA;
+            this.runSDTS = runSDTS;
+            this.runBPPTS = runBPPTS;
         }
     }
 

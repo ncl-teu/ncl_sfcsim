@@ -151,6 +151,13 @@ public class SFCGenerator {
      */
     //SFC就是日常我们所描述的类似于DAG的结构，包含了VNF和它们之间的依赖关系。这个方法的目的是生成多个SFC，并将它们合并成一个大的SFC，其中包含了一个虚拟的开始VNF和一个虚拟的结束VNF，以便于后续的调度算法能够处理这个大的SFC。
 
+    /** Generate one independent input when screening several seeds in the same JVM. */
+    public static SFC generateIndependentWorkflow() {
+        own = new SFCGenerator();
+        sfc = null;
+        return own.multipleSFCProcess();
+    }
+
     public SFC multipleSFCProcess() {
         try {
             //仮想start/endを用意する．

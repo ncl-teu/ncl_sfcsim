@@ -4,12 +4,16 @@ import net.gripps.cloud.CloudUtil;
 import net.gripps.cloud.core.*;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
+import net.gripps.cloud.nfv.sfc.BandwidthTimeSlot;
 import net.gripps.cloud.nfv.sfc.BaseVNFSchedulingAlgorithm;
+import net.gripps.cloud.nfv.sfc.CompositeBandwidthSlot;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by User on 2026/04/08.
@@ -32,7 +36,13 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         private double finishTime;
         private ComputeHost sourceHost;
         private ComputeHost targetHost;
+        // Inter-DC transfers only: the DC path and the fixed rate reserved on it.
+        private BandwidthTimeSlot dcPath;
+        private long dcRate;
     }
+
+    /** DC-pair and DC external-link records of DHEFT's own inter-DC transfers. */
+    private final Map<String, BandwidthTimeSlot> dcSlots = new HashMap<String, BandwidthTimeSlot>();
 
     public DHEFT_VNFAlgorithm(CloudEnvironment env, SFC sfc) {
         super(env, sfc);
@@ -182,7 +192,33 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
                 if (bw <= 0) {
                     return null;
                 }
-                duration = CloudUtil.getRoundedValue((double) dataSize / (double) bw);
+                // The host queues keep one transfer per NIC at a time. The duration is not rounded,
+                // so the fixed rate times the duration carries exactly the image size.
+                duration = (double) dataSize / (double) bw;
+                if (srcHost.getDcID().longValue() != dstHost.getDcID().longValue()) {
+                    // An inter-DC transfer is also limited by the DC links and must find a window
+                    // on them at its fixed rate.
+                    bw = Math.min(bw, this.dcPairCapacity(srcHost, dstHost));
+                    if (bw <= 0) {
+                        return null;
+                    }
+                    duration = (double) dataSize / (double) bw;
+                    BandwidthTimeSlot path = this.dcPath(srcHost, dstHost);
+                    start = this.earliestDCWindow(path, bw, start, duration);
+                    if (start >= NFVUtil.MAXValue) {
+                        return null;
+                    }
+                    DownloadPlan plan = new DownloadPlan();
+                    plan.sourceVM = sourceVM;
+                    plan.fromRepo = false;
+                    plan.startTime = start;
+                    plan.finishTime = start + duration;
+                    plan.sourceHost = srcHost;
+                    plan.targetHost = dstHost;
+                    plan.dcPath = path;
+                    plan.dcRate = bw;
+                    return plan;
+                }
             }
         }
 
@@ -194,6 +230,54 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         plan.sourceHost = srcHost;
         plan.targetHost = dstHost;
         return plan;
+    }
+
+    private long dcPairCapacity(ComputeHost a, ComputeHost b) {
+        return Math.min(this.env.getDcMap().get(a.getDcID()).getBw(), this.env.getDcMap().get(b.getDcID()).getBw());
+    }
+
+    /**
+     * Full duplex: the DC pair in the transfer direction, the source DC's outbound external link
+     * and the destination DC's inbound external link.
+     */
+    private BandwidthTimeSlot dcPath(ComputeHost src, ComputeHost dst) {
+        long a = src.getDcID();
+        long b = dst.getDcID();
+        Cloud ca = this.env.getDcMap().get(a);
+        Cloud cb = this.env.getDcMap().get(b);
+        return new CompositeBandwidthSlot("DHEFT-DCPath^" + a + "^" + b, Arrays.asList(
+                this.dcSlot("DCDir^" + a + "^" + b, Math.min(ca.getBw(), cb.getBw())),
+                this.dcSlot("DCExtOut^" + a, ca.getBw()),
+                this.dcSlot("DCExtIn^" + b, cb.getBw())));
+    }
+
+    private BandwidthTimeSlot dcSlot(String key, long capacity) {
+        BandwidthTimeSlot slot = this.dcSlots.get(key);
+        if (slot == null) {
+            slot = new BandwidthTimeSlot(key, capacity);
+            this.dcSlots.put(key, slot);
+        }
+        return slot;
+    }
+
+    /** Earliest start at or after {@code from} with {@code rate} free on the path for the whole transfer. */
+    private double earliestDCWindow(BandwidthTimeSlot path, long rate, double from, double duration) {
+        double start = from;
+        while (Double.isFinite(start) && start < NFVUtil.MAXValue) {
+            double end = start + duration;
+            if (!(end > start) || end >= NFVUtil.MAXValue) {
+                return NFVUtil.MAXValue;
+            }
+            if (path.getAvailableBW(start, end) >= rate) {
+                return start;
+            }
+            double next = path.getNextChangeTime(start);
+            if (!(next > start)) {
+                return NFVUtil.MAXValue;
+            }
+            start = next;
+        }
+        return NFVUtil.MAXValue;
     }
 
     /**
@@ -217,12 +301,34 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
         double repoQueueTail = this.getHostQueueTail(repoHost);
         double targetQueueTail = this.getHostQueueTail(dstHost);
         double queueTail = Math.max(repoQueueTail, targetQueueTail);
-        double duration = this.calcImageComTimeFromRepo(vnf, targetVcpu);
-        if (duration >= NFVUtil.MAXValue) {
+        if (vnf.getImageSize() <= 0L) {
+            plan.startTime = queueTail;
+            plan.finishTime = queueTail;
+            return plan;
+        }
+        // Fixed repository rate; across DCs it must also fit on the DC links. The duration is not
+        // rounded, so rate times duration is exactly the image size.
+        boolean interDC = repoHost.getDcID().longValue() != dstHost.getDcID().longValue();
+        long rate = Math.min(repoHost.getBw(), dstHost.getBw());
+        if (interDC) {
+            rate = Math.min(rate, this.dcPairCapacity(repoHost, dstHost));
+        }
+        if (rate <= 0L) {
             return null;
         }
-        plan.startTime = queueTail;
-        plan.finishTime = queueTail + duration;
+        double duration = (double) vnf.getImageSize() / (double) rate;
+        double start = queueTail;
+        if (interDC) {
+            BandwidthTimeSlot path = this.dcPath(repoHost, dstHost);
+            start = this.earliestDCWindow(path, rate, queueTail, duration);
+            if (start >= NFVUtil.MAXValue) {
+                return null;
+            }
+            plan.dcPath = path;
+            plan.dcRate = rate;
+        }
+        plan.startTime = start;
+        plan.finishTime = start + duration;
         return plan;
     }
 
@@ -458,6 +564,10 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
             // Only commit real transfers to host queues.
             // Zero-transfer local reuse should not pollute queues.
             if (plan.finishTime > plan.startTime) {
+                if (plan.dcPath != null && !plan.dcPath.reserveBW(plan.startTime, plan.finishTime, plan.dcRate,
+                        "DHEFT^" + this.buildVnfKey(vnf))) {
+                    throw new IllegalStateException("DC link reservation rejected for VNF " + vnf.getIDVector().get(1));
+                }
                 this.recordImageDownload(plan.fromRepo, plan.startTime, plan.finishTime);
                 this.commitHostQueues(vnf, plan);
             }
@@ -487,6 +597,15 @@ public class DHEFT_VNFAlgorithm extends BaseVNFSchedulingAlgorithm {
 
         this.unScheduledVNFSet.remove(vnf.getIDVector().get(1));
         this.updateFreeList(vnf);
+    }
+
+    @Override
+    public void validateSchedule() {
+        super.validateSchedule();
+        // Subclasses with their own transfer model leave these records empty.
+        for (BandwidthTimeSlot slot : this.dcSlots.values()) {
+            slot.validateOccupancy();
+        }
     }
 
     public void mainProcess() {

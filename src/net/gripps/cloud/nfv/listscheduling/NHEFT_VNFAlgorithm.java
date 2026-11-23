@@ -9,6 +9,7 @@ import net.gripps.cloud.core.VM;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.sfc.BandwidthTimeSlot;
+import net.gripps.cloud.nfv.sfc.CompositeBandwidthSlot;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 
@@ -734,12 +735,10 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
         BandwidthTimeSlot dcSlot = null;
         if (srcDCID != dstDCID) {
-            String dcKey = this.makeDCPairKey(srcDCID, dstDCID);
-            dcSlot = this.getOrCreateSlot(dcKey, dcCap);
+            dcSlot = this.dcPathSlot(srcDCID, dstDCID, dcCap, srcCloud, dstCloud);
         }
 
-        String hostKey = this.makeHostPairKey(srcHost.getPrefix(), dstHost.getPrefix());
-        BandwidthTimeSlot hostSlot = this.getOrCreateSlot(hostKey, hostCap);
+        BandwidthTimeSlot hostSlot = this.hostPathSlot(srcHost, dstHost, hostCap);
 
         // Keep pre-download close to execution demand to avoid excessive early reservations.
         double arrival = this.calcDeadLine(vnf, targetVCPU).get("arrival_time");
@@ -1029,13 +1028,11 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         BandwidthTimeSlot dcSlot = null;
         if (srcDCID != dstDCID) {
             dcCap = Math.min(srcCloud.getBw(), dstCloud.getBw());
-            String dcKey = this.makeDCPairKey(srcDCID, dstDCID);
-            dcSlot = this.getOrCreateSlot(dcKey, dcCap);
+            dcSlot = this.dcPathSlot(srcDCID, dstDCID, dcCap, srcCloud, dstCloud);
         }
 
         long hostCap = Math.min(srcHost.getBw(), dstHost.getBw());
-        String hostKey = this.makeHostPairKey(srcHost.getPrefix(), dstHost.getPrefix());
-        BandwidthTimeSlot hostSlot = this.getOrCreateSlot(hostKey, hostCap);
+        BandwidthTimeSlot hostSlot = this.hostPathSlot(srcHost, dstHost, hostCap);
 
         long maxTransferBW = Math.min(dcCap, hostCap);
         if (maxTransferBW <= 0L) {
@@ -1076,17 +1073,29 @@ public class NHEFT_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         return this.env.getGlobal_hostMap().get(hostPrefix);
     }
 
-    private String makeDCPairKey(long a, long b) {
-        long min = Math.min(a, b);
-        long max = Math.max(a, b);
-        return "DCLink^" + min + "^" + max;
+    /**
+     * Bandwidth record for an inter-DC transfer. Every link is full duplex (one capacity per
+     * direction): the DC pair in the transfer direction, the source DC's outbound external link
+     * and the destination DC's inbound external link, each shared by every inter-DC transfer
+     * using it.
+     */
+    private BandwidthTimeSlot dcPathSlot(long srcDCID, long dstDCID, long dcCap, Cloud srcCloud, Cloud dstCloud) {
+        return new CompositeBandwidthSlot("DCPath^" + srcDCID + "^" + dstDCID, Arrays.asList(
+                this.getOrCreateSlot("DCDir^" + srcDCID + "^" + dstDCID, dcCap),
+                this.getOrCreateSlot("DCExtOut^" + srcDCID, srcCloud.getBw()),
+                this.getOrCreateSlot("DCExtIn^" + dstDCID, dstCloud.getBw())));
     }
 
-    private String makeHostPairKey(String a, String b) {
-        if (a.compareTo(b) <= 0) {
-            return "HostLink^" + a + "^" + b;
-        }
-        return "HostLink^" + b + "^" + a;
+    /**
+     * Bandwidth record for the host part of a transfer, full duplex: the host pair in the transfer
+     * direction, the sending host's outbound NIC and the receiving host's inbound NIC, each shared
+     * by every transfer using it. The repository is a sending host with repository_bw.
+     */
+    private BandwidthTimeSlot hostPathSlot(ComputeHost srcHost, ComputeHost dstHost, long hostCap) {
+        return new CompositeBandwidthSlot("HostPath^" + srcHost.getPrefix() + "^" + dstHost.getPrefix(), Arrays.asList(
+                this.getOrCreateSlot("HostDir^" + srcHost.getPrefix() + "^" + dstHost.getPrefix(), hostCap),
+                this.getOrCreateSlot("NicOut^" + srcHost.getPrefix(), srcHost.getBw()),
+                this.getOrCreateSlot("NicIn^" + dstHost.getPrefix(), dstHost.getBw())));
     }
 
     private String makeTaskId(VNF vnf, VCPU vcpu, boolean fromRepo) {

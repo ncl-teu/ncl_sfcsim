@@ -187,7 +187,9 @@ public class NFVUtil extends CloudUtil {
         try{
             //設定情報
             NFVUtil.prop = new Properties();
-            NFVUtil.prop.load(new FileInputStream(propName));
+            try (FileInputStream config = new FileInputStream(propName)) {
+                NFVUtil.prop.load(config);
+            }
             NFVUtil.vnf_weight_min = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_min"));
             NFVUtil.vnf_weight_max = Long.valueOf( CloudUtil.prop.getProperty("vnf_weight_max"));
             NFVUtil.dist_vnf_weight = Integer.valueOf( CloudUtil.prop.getProperty("dist_vnf_weight"));

@@ -33,6 +33,10 @@ public class BandwidthTimeSlot {
         this.totalBW = totalBW;
     }
 
+    public long getTotalBW() {
+        return totalBW;
+    }
+
     /**
      * 获取 [startTime, endTime] 时间段内可用的最小带宽
      */

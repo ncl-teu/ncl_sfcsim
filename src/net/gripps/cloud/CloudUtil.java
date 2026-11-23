@@ -368,7 +368,9 @@ public class CloudUtil {
         try{
             //設定情報
             CloudUtil.prop = new Properties();
-            CloudUtil.prop.load(new FileInputStream(propName));
+            try (FileInputStream config = new FileInputStream(propName)) {
+                CloudUtil.prop.load(config);
+            }
             //データセンター数
             CloudUtil.num_dc = Integer.valueOf( CloudUtil.prop.getProperty("datacenter_num"));
             CloudUtil.datacenter_externalbw_min = Long.valueOf( CloudUtil.prop.getProperty("datacenter_externalbw_min"));

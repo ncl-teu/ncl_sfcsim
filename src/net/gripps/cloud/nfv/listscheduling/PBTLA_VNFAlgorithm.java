@@ -8,6 +8,7 @@ import net.gripps.cloud.core.VM;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.sfc.BandwidthTimeSlot;
+import net.gripps.cloud.nfv.sfc.CompositeBandwidthSlot;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.clustering.common.aplmodel.CustomIDSet;
@@ -15,6 +16,7 @@ import net.gripps.clustering.common.aplmodel.DataDependence;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
@@ -69,8 +71,11 @@ import java.util.TreeMap;
  * <li>Data arrival uses the simulator's static communication time, as for every algorithm.</li>
  * <li>Estimates use the repository path rate of each server for {@code w_cs} and the platform average
  * bandwidth (as in b-level) for {@code w_s}; tail ranks use the average speed and bandwidth.</li>
- * <li>Actual transfers use one fixed rate (the path bottleneck) on this algorithm's own copy of the
- * host-pair and DC-pair links, and wait for a full interval at that rate. A transfer between VMs on
+ * <li>Actual transfers use one fixed rate (the path bottleneck) and wait for a full interval at that
+ * rate on the platform's full-duplex capacity model, shared by every transfer of this algorithm: the
+ * host pair in the transfer direction, the sender's outbound NIC (repository_bw for the repository)
+ * and the receiver's inbound NIC; across DCs also the DC pair in the transfer direction and both DCs'
+ * external links (outbound at the source, inbound at the destination). A transfer between VMs on
  * the same host takes no time, as in the platform rule used by DHEFT and NHEFT.</li>
  * <li>Batch size is {@code max(1, floor(batchCoreRatio * cores))}, default ratio 0.5. The paper sets it to
  * twice the number of servers with four cores each (8 tasks for 16 cores, Sec. VI-A); our VMs have one to
@@ -85,8 +90,8 @@ import java.util.TreeMap;
  */
 public final class PBTLA_VNFAlgorithm extends DHEFT_VNFAlgorithm {
     public static final String LABEL = "PBTLA";
-    public static final String MODEL_REVISION_SINGLE = "wo-rls-vm-core-ratio-tab-single-v3";
-    public static final String MODEL_REVISION_ALL = "wo-rls-vm-core-ratio-tab-all-v2";
+    public static final String MODEL_REVISION_SINGLE = "wo-rls-vm-core-ratio-tab-single-capacity-v4";
+    public static final String MODEL_REVISION_ALL = "wo-rls-vm-core-ratio-tab-all-capacity-v3";
     public static final String TAB_SINGLE = "single";
     public static final String TAB_ALL = "all";
     private static final double EPS = 1.0e-9;
@@ -458,38 +463,56 @@ public final class PBTLA_VNFAlgorithm extends DHEFT_VNFAlgorithm {
                 && source.getMachineID() == target.getMachineID()) {
             return Path.local();
         }
+        String src = source.getPrefix();
+        String dst = target.getPrefix();
         long hostCapacity = Math.min(source.getBw(), target.getBw());
-        String hostKey = "host:" + pairKey(source.getPrefix(), target.getPrefix());
+        // Full duplex: the host pair in the transfer direction, the sender's outbound and the
+        // receiver's inbound NIC.
+        String[] hostKeys = {"HostDir^" + src + "^" + dst, "NicOut^" + src, "NicIn^" + dst};
+        long[] hostCapacities = {hostCapacity, source.getBw(), target.getBw()};
         long rate = hostCapacity;
-        String dcKey = null;
-        long dcCapacity = 0L;
+        String[] dcKeys = null;
+        long[] dcCapacities = null;
         if (source.getDcID().longValue() != target.getDcID().longValue()) {
             Cloud a = this.env.getDcMap().get(source.getDcID());
             Cloud b = this.env.getDcMap().get(target.getDcID());
             if (a == null || b == null) throw new IllegalStateException("Missing DC on transfer path");
-            dcCapacity = Math.min(a.getBw(), b.getBw());
-            dcKey = "dc:" + pairKey(String.valueOf(source.getDcID()), String.valueOf(target.getDcID()));
+            long dcCapacity = Math.min(a.getBw(), b.getBw());
+            // Full duplex: the DC pair in the transfer direction, the source DC's outbound and the
+            // destination DC's inbound external link.
+            dcKeys = new String[]{"DCDir^" + source.getDcID() + "^" + target.getDcID(),
+                    "DCExtOut^" + source.getDcID(), "DCExtIn^" + target.getDcID()};
+            dcCapacities = new long[]{dcCapacity, a.getBw(), b.getBw()};
             rate = Math.min(rate, dcCapacity);
         }
         if (rate <= 0L) throw new IllegalStateException("Non-positive transfer rate");
-        return new Path(hostKey, hostCapacity, dcKey, dcCapacity, rate);
+        return new Path(hostKeys, hostCapacities, dcKeys, dcCapacities, rate);
     }
 
-    private static String pairKey(String a, String b) {
-        return a.compareTo(b) <= 0 ? a + "|" + b : b + "|" + a;
-    }
-
+    /** The stored record for one link, created empty on first use. */
     private BandwidthTimeSlot link(String key, long capacity) {
         BandwidthTimeSlot slot = this.links.get(key);
-        return slot == null ? new BandwidthTimeSlot(key, capacity) : slot;
+        if (slot == null) {
+            slot = new BandwidthTimeSlot(key, capacity);
+            this.links.put(key, slot);
+        }
+        return slot;
+    }
+
+    /** All records one part of a path crosses at the same time; null for no such part. */
+    private BandwidthTimeSlot composite(String[] keys, long[] capacities) {
+        if (keys == null) return null;
+        List<BandwidthTimeSlot> members = new ArrayList<BandwidthTimeSlot>();
+        for (int i = 0; i < keys.length; i++) members.add(this.link(keys[i], capacities[i]));
+        return new CompositeBandwidthSlot(Arrays.toString(keys), members);
     }
 
     /** Earliest full-rate interval starting no earlier than {@code earliest}; never splits a transfer. */
     private double[] planTransfer(Path path, long size, double earliest) {
         if (path.local || size <= 0L) return new double[]{earliest, earliest};
         double duration = (double) size / (double) path.rate;
-        BandwidthTimeSlot host = this.link(path.hostKey, path.hostCapacity);
-        BandwidthTimeSlot dc = path.dcKey == null ? null : this.link(path.dcKey, path.dcCapacity);
+        BandwidthTimeSlot host = this.composite(path.hostKeys, path.hostCapacities);
+        BandwidthTimeSlot dc = this.composite(path.dcKeys, path.dcCapacities);
         double start = earliest;
         while (Double.isFinite(start) && start < NFVUtil.MAXValue) {
             double end = start + duration;
@@ -508,8 +531,8 @@ public final class PBTLA_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
     private void reserve(Path path, double[] plan, VNF vnf) {
         String id = LABEL + "^" + this.buildVnfKey(vnf);
-        BandwidthTimeSlot host = this.link(path.hostKey, path.hostCapacity);
-        BandwidthTimeSlot dc = path.dcKey == null ? null : this.link(path.dcKey, path.dcCapacity);
+        BandwidthTimeSlot host = this.composite(path.hostKeys, path.hostCapacities);
+        BandwidthTimeSlot dc = this.composite(path.dcKeys, path.dcCapacities);
         if (dc != null && !dc.reserveBW(plan[0], plan[1], path.rate, id)) {
             throw new IllegalStateException("PBTLA DC reservation rejected: " + id);
         }
@@ -517,8 +540,6 @@ public final class PBTLA_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             if (dc != null) dc.releaseBWExact(id);
             throw new IllegalStateException("PBTLA host reservation rejected: " + id);
         }
-        this.links.put(path.hostKey, host);
-        if (dc != null) this.links.put(path.dcKey, dc);
     }
 
     // ------------------------------------------------------------------ commit
@@ -679,23 +700,23 @@ public final class PBTLA_VNFAlgorithm extends DHEFT_VNFAlgorithm {
 
     private static final class Path {
         private final boolean local;
-        private final String hostKey;
-        private final long hostCapacity;
-        private final String dcKey;
-        private final long dcCapacity;
+        private final String[] hostKeys;
+        private final long[] hostCapacities;
+        private final String[] dcKeys;
+        private final long[] dcCapacities;
         private final long rate;
 
-        private Path(String hostKey, long hostCapacity, String dcKey, long dcCapacity, long rate) {
-            this.local = hostKey == null;
-            this.hostKey = hostKey;
-            this.hostCapacity = hostCapacity;
-            this.dcKey = dcKey;
-            this.dcCapacity = dcCapacity;
+        private Path(String[] hostKeys, long[] hostCapacities, String[] dcKeys, long[] dcCapacities, long rate) {
+            this.local = hostKeys == null;
+            this.hostKeys = hostKeys;
+            this.hostCapacities = hostCapacities;
+            this.dcKeys = dcKeys;
+            this.dcCapacities = dcCapacities;
             this.rate = rate;
         }
 
         private static Path local() {
-            return new Path(null, 0L, null, 0L, Long.MAX_VALUE);
+            return new Path(null, null, null, null, Long.MAX_VALUE);
         }
     }
 

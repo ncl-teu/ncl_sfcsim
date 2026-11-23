@@ -8,11 +8,13 @@ import net.gripps.cloud.core.VM;
 import net.gripps.cloud.nfv.NFVEnvironment;
 import net.gripps.cloud.nfv.NFVUtil;
 import net.gripps.cloud.nfv.sfc.BandwidthTimeSlot;
+import net.gripps.cloud.nfv.sfc.CompositeBandwidthSlot;
 import net.gripps.cloud.nfv.sfc.SFC;
 import net.gripps.cloud.nfv.sfc.VNF;
 import net.gripps.clustering.common.aplmodel.DataDependence;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +42,9 @@ import java.util.Map;
  * placement order.</li>
  * <li>Use one fixed bottleneck rate for the entire download. Starting from
  * {@code max(release, vmDownloadTail)}, wait for a continuous interval with enough
- * host/DC link capacity. Never split a transfer, change its rate, or use a peer.</li>
+ * capacity on the repository's outbound link, the target host's inbound link and, across DCs,
+ * the DC pair and both DCs' external links (full duplex). Never split a transfer, change its
+ * rate, or use a peer.</li>
  * <li>Candidate plans do not reserve anything. Commit only the selected transfer,
  * and start computation after image readiness, data arrival, and admission.</li>
  * </ul>
@@ -147,9 +151,12 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         long hostCapacity = Math.min(repo.getBw(), host.getBw());
         if (hostCapacity <= 0L) return null;
         long rate = hostCapacity;
-        String hostKey = "repo-host:" + host.getPrefix();
-        BandwidthTimeSlot hostLink = this.linkOrEmpty(hostKey, hostCapacity);
-        String dcKey = null;
+        // Full duplex: the repository-to-host pair, the repository's outbound capacity and the
+        // target host's inbound capacity, each shared with every other transfer using it.
+        BandwidthTimeSlot hostLink = new CompositeBandwidthSlot("repo-host-path:" + host.getPrefix(), Arrays.asList(
+                this.storedLink("repo-host:" + host.getPrefix(), hostCapacity),
+                this.storedLink("nic-out:" + repo.getPrefix(), repo.getBw()),
+                this.storedLink("nic-in:" + host.getPrefix(), host.getBw())));
         BandwidthTimeSlot dcLink = null;
         if (!repo.getDcID().equals(host.getDcID())) {
             Cloud source = this.env.getDcMap().get(repo.getDcID());
@@ -158,8 +165,12 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             long dcCapacity = Math.min(source.getBw(), destination.getBw());
             if (dcCapacity <= 0L) return null;
             rate = Math.min(rate, dcCapacity);
-            dcKey = "repo-dc:" + host.getDcID();
-            dcLink = this.linkOrEmpty(dcKey, dcCapacity);
+            // Full duplex: the DC pair, the repository DC's outbound and the target DC's inbound
+            // external link.
+            dcLink = new CompositeBandwidthSlot("repo-dc-path:" + host.getDcID(), Arrays.asList(
+                    this.storedLink("repo-dc:" + host.getDcID(), dcCapacity),
+                    this.storedLink("dc-ext-out:" + repo.getDcID(), source.getBw()),
+                    this.storedLink("dc-ext-in:" + host.getDcID(), destination.getBw())));
         }
 
         double duration = (double) vnf.getImageSize() / rate;
@@ -169,7 +180,7 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             if (end <= start || end >= NFVUtil.MAXValue) return null;
             if (hostLink.getAvailableBW(start, end) >= rate
                     && (dcLink == null || dcLink.getAvailableBW(start, end) >= rate)) {
-                return new ImagePlan(start, end, rate, hostKey, hostLink, dcKey, dcLink);
+                return new ImagePlan(start, end, rate, hostLink, dcLink);
             }
             // Advance to a capacity event, not a partial transfer at a reduced rate.
             double next = hostLink.getNextChangeTime(start);
@@ -179,9 +190,14 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         return null;
     }
 
-    private BandwidthTimeSlot linkOrEmpty(String key, long capacity) {
+    /** The stored record for one link, created empty on first use. */
+    private BandwidthTimeSlot storedLink(String key, long capacity) {
         BandwidthTimeSlot link = this.repositoryLinks.get(key);
-        return link == null ? new BandwidthTimeSlot(key, capacity) : link;
+        if (link == null) {
+            link = new BandwidthTimeSlot(key, capacity);
+            this.repositoryLinks.put(key, link);
+        }
+        return link;
     }
 
     private void commitPlacement(VNF vnf, Candidate selected, double admission) {
@@ -227,8 +243,6 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
             if (plan.dcLink != null) plan.dcLink.releaseBWExact(id);
             throw new IllegalStateException("Repository host reservation rejected: " + id);
         }
-        this.repositoryLinks.put(plan.hostKey, plan.hostLink);
-        if (plan.dcLink != null) this.repositoryLinks.put(plan.dcKey, plan.dcLink);
     }
 
     @Override
@@ -251,24 +265,20 @@ public final class DepComp_VNFAlgorithm extends DHEFT_VNFAlgorithm {
         private final double start;
         private final double readyAt;
         private final long rate;
-        private final String hostKey;
         private final BandwidthTimeSlot hostLink;
-        private final String dcKey;
         private final BandwidthTimeSlot dcLink;
 
-        private ImagePlan(double start, double readyAt, long rate, String hostKey, BandwidthTimeSlot hostLink,
-                          String dcKey, BandwidthTimeSlot dcLink) {
+        private ImagePlan(double start, double readyAt, long rate, BandwidthTimeSlot hostLink,
+                          BandwidthTimeSlot dcLink) {
             this.start = start;
             this.readyAt = readyAt;
             this.rate = rate;
-            this.hostKey = hostKey;
             this.hostLink = hostLink;
-            this.dcKey = dcKey;
             this.dcLink = dcLink;
         }
 
         private static ImagePlan reuse(double readyAt) {
-            return new ImagePlan(readyAt, readyAt, 0L, null, null, null, null);
+            return new ImagePlan(readyAt, readyAt, 0L, null, null);
         }
     }
 
