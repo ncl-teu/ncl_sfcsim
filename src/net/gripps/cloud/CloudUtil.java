@@ -407,7 +407,6 @@ public class CloudUtil {
 
             CloudUtil.dist_host_bw = Integer.valueOf( CloudUtil.prop.getProperty("dist_host_bw"));
             CloudUtil.dist_host_bw_mu = Double.valueOf( CloudUtil.prop.getProperty("dist_host_bw_mu")).doubleValue();
-            CloudUtil.dist_host_mips_mu = Double.valueOf(prop.getProperty("dist_host_bw_mu")).doubleValue();
             CloudUtil.host_bw_min=Long.valueOf( CloudUtil.prop.getProperty("host_bw_min"));
             CloudUtil.host_bw_max=Long.valueOf( CloudUtil.prop.getProperty("host_bw_max"));
             CloudUtil.vm_cpi=Integer.valueOf( CloudUtil.prop.getProperty("vm_cpi"));
@@ -499,7 +498,7 @@ public class CloudUtil {
         //VM Parameters
         long size = 10000; //image size (MB)
         int ram = CloudUtil.genInt(CloudUtil.vm_mem_min,CloudUtil.vm_mem_max);
-        int mips = CloudUtil.genInt2(CloudUtil.host_mips_min,CloudUtil.host_mips_max, CloudUtil.dist_host_mips, CloudUtil.dist_host_bw_mu);
+        int mips = CloudUtil.genInt2(CloudUtil.host_mips_min,CloudUtil.host_mips_max, CloudUtil.dist_host_mips, CloudUtil.dist_host_mips_mu);
         long bw = CloudUtil.genLong2(CloudUtil.host_bw_min, CloudUtil.host_bw_max, CloudUtil.dist_host_bw, CloudUtil.dist_host_bw_mu);
 
         int pesNumber = 1; //number of cpus
